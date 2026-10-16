@@ -1,0 +1,9 @@
+{
+  "name": "spieleblock-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Spieleblock (Kniffel, Wizard, Punktetafel) mit Live-Tisch zum Selbst-Hosten",
+  "scripts": { "start": "node server.mjs" },
+  "engines": { "node": ">=20" }
+}

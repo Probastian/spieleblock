@@ -1,0 +1,36 @@
+services:
+  spieleblock:
+    build: .
+    image: spieleblock:latest
+    container_name: spieleblock
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Berlin
+      # Optional: Ohne diesen Code kann jeder, der die Adresse kennt, spielen.
+      # ACCESS_KEY: "dein-geheimer-zugangscode"
+      # Tische ohne Aktivität werden nach so vielen Tagen gelöscht (0 = nie).
+      TABLE_TTL_DAYS: "30"
+      # Täglich ein Backup, so viele Tage werden behalten.
+      BACKUP_KEEP: "14"
+    volumes:
+      - spieleblock-data:/data
+    # Variante A (einfach): Port am Host freigeben, im Nginx Proxy Manager auf <Host-IP>:3000 zeigen.
+    ports:
+      - "3000:3000"
+    # Variante B: ohne Port, im selben Docker-Netz wie der Nginx Proxy Manager.
+    #   1) die Zeilen "ports" oben löschen
+    #   2) Namen des NPM-Netzwerks prüfen:  docker network ls
+    #   3) unten einkommentieren; im NPM dann Host "spieleblock", Port 3000
+    # networks: [default, proxy]
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    mem_limit: 192m
+
+volumes:
+  spieleblock-data:
+
+# networks:
+#   proxy:
+#     external: true
+#     name: npm_default

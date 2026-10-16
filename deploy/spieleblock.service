@@ -1,0 +1,27 @@
+# Variante ohne Docker: z. B. in einem Debian-LXC mit "apt install nodejs" (Node 20 oder neuer).
+# Ablegen unter /etc/systemd/system/spieleblock.service, dann:
+#   systemctl daemon-reload && systemctl enable --now spieleblock
+[Unit]
+Description=Spieleblock
+After=network.target
+
+[Service]
+User=spieleblock
+WorkingDirectory=/opt/spieleblock
+Environment=PORT=3000
+Environment=DATA_DIR=/var/lib/spieleblock
+# Environment=ACCESS_KEY=dein-geheimer-zugangscode
+ExecStart=/usr/bin/node server.mjs
+Restart=always
+RestartSec=3
+# Der Server schreibt beim Beenden einen Snapshot
+TimeoutStopSec=15
+StateDirectory=spieleblock
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/spieleblock
+
+[Install]
+WantedBy=multi-user.target
