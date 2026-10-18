@@ -11,7 +11,7 @@ import { SheetHeadComponent } from '../../shared/ui/sheet-head.component';
       <section>
         <h3>Ablauf</h3>
         <p>Jeder startet mit einer Karte im eigenen Zeitstrahl, die ältesten Songs oben. Wer dran ist, zieht eine Karte und hört den Song, ohne Titel und Jahr zu sehen. Dann sortiert er ihn in seinen Zeitstrahl ein: vor die erste Karte, zwischen zwei Karten oder hinter die letzte.</p>
-        <p>Beim Auflösen zeigt der Block das Jahr. Liegt der Song richtig, bleibt die Karte im Zeitstrahl, sonst ist sie raus. Gleiche Jahre zählen immer als richtig. Wer zuerst das Ziel an Karten hat, gewinnt.</p>
+        <p>Hat der Spieler am Zug den Platz gewählt, bestätigt er ihn. Danach können die anderen widersprechen (siehe Einspruch), und sobald alle entschieden haben, löst der Block von selbst auf und zeigt das Jahr. Liegt der Song richtig, bleibt die Karte im Zeitstrahl, sonst ist sie raus. Gleiche Jahre zählen immer als richtig. Wer zuerst das Ziel an Karten hat, gewinnt.</p>
       </section>
       <section>
         <h3>Token</h3>
@@ -21,7 +21,7 @@ import { SheetHeadComponent } from '../../shared/ui/sheet-head.component';
         </div>
         <div class="ritem">
           <div class="ritem-h"><b>Einspruch</b></div>
-          <p>Hat jemand die Karte gelegt, können die anderen widersprechen: Wer den Song anders einsortieren würde, setzt ein Token ein und tippt auf einen anderen Platz im Zeitstrahl. Pro Spieler ein Einspruch, und jeder Platz nur einmal. Liegt der Spieler am Zug richtig, bleibt die Karte bei ihm. Liegt er falsch und ein Einspruch richtig, bekommt der Widersprechende die Karte in seinen eigenen Zeitstrahl, bei mehreren der Erste. Das Token ist in jedem Fall weg. Sobald es einen Einspruch gibt, kann der Platz nicht mehr geändert werden.</p>
+          <p>Nachdem der Spieler am Zug den Platz bestätigt hat, entscheidet jeder andere: Wer den Song anders einsortieren würde, widerspricht, setzt ein Token ein und tippt auf einen anderen Platz im Zeitstrahl, alle anderen sagen „Kein Einspruch“. Wer sich keinen Einspruch leisten kann, muss nichts tun. Pro Spieler ein Einspruch, und jeder Platz nur einmal. Haben alle entschieden, geht es automatisch weiter. Liegt der Spieler am Zug richtig, bleibt die Karte bei ihm. Liegt er falsch und ein Einspruch richtig, bekommt der Widersprechende die Karte in seinen eigenen Zeitstrahl, bei mehreren der Erste reihum nach dem Spieler am Zug. Das Token ist in jedem Fall weg. Wartet jemand nicht ab, beendet „Ohne Warten weiter“ die Runde.</p>
         </div>
         <div class="ritem">
           <div class="ritem-h"><b>Titel und Interpret</b></div>

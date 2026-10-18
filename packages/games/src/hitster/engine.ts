@@ -74,8 +74,8 @@ export const hitsterEngine: GameEngine<HitsterGame, HitsterOptions> = {
         return 'Karte zurücklegen';
       case 'place':
         return 'Platz zurücknehmen';
-      case 'reveal':
-        return 'Auflösung zurücknehmen';
+      case 'confirm':
+        return 'Bestätigung zurücknehmen';
       case 'end':
         return 'Zug zurücknehmen';
       case 'skip':
@@ -84,6 +84,10 @@ export const hitsterEngine: GameEngine<HitsterGame, HitsterOptions> = {
         return 'Token zurücknehmen';
       case 'veto':
         return 'Einspruch zurücknehmen';
+      case 'pass':
+        return 'Verzicht zurücknehmen';
+      case 'close':
+        return 'Einspruchsrunde zurücknehmen';
       case 'buy':
         return 'Kauf zurücknehmen';
       case 'year':
@@ -116,26 +120,43 @@ export const hitsterEngine: GameEngine<HitsterGame, HitsterOptions> = {
     const card = cleanCard(c?.['card']);
     out.current = null;
     if (out.started && c && card) {
-      const phase = c['phase'] === 'revealed' ? 'revealed' : c['phase'] === 'placed' ? 'placed' : 'listen';
+      const n = out.players.length;
       const line = out.players[out.turn]!.line;
       const slot = c['slot'] === null || c['slot'] === undefined ? null : clampInt(c['slot'], 0, line.length);
-      // Ohne gewählten Platz gibt es nichts aufzulösen
-      const safe = phase !== 'listen' && slot === null ? 'listen' : phase;
-      const current: H.HitsterCurrent = { card, phase: safe, slot };
-      if (safe === 'revealed') current.ok = !!c['ok'];
 
-      if (safe !== 'listen') {
-        // Einsprüche: nicht vom Spieler am Zug, je Spieler und je Platz nur einer, nie auf dem gewählten Platz
-        const vetoes: H.HitsterVeto[] = [];
-        for (const v of (Array.isArray(c['vetoes']) ? c['vetoes'] : []).slice(0, out.players.length)) {
-          const pi = clampInt(v?.pi, 0, out.players.length - 1);
-          const vs = clampInt(v?.slot, 0, line.length);
-          if (pi !== out.turn && vs !== slot && !vetoes.some(x => x.pi === pi || x.slot === vs)) vetoes.push({ pi, slot: vs });
-        }
-        if (vetoes.length) current.vetoes = vetoes;
+      // Einsprüche: Zuordnung Spieler → Platz. Ältere Fassungen speicherten eine Liste `[{ pi, slot }]`.
+      const rawVetoes: [unknown, unknown][] = Array.isArray(c['vetoes'])
+        ? c['vetoes'].map((v: any) => [v?.pi, v?.slot])
+        : c['vetoes'] && typeof c['vetoes'] === 'object' ? Object.entries(c['vetoes']) : [];
+      const vetoes: Record<string, number> = {};
+      for (const [k, v] of rawVetoes) {
+        const pi = clampInt(k, 0, n - 1);
+        const vs = clampInt(v, 0, line.length);
+        // nicht der Spieler am Zug, je Spieler und je Platz nur einer, nie der gewählte Platz
+        if (pi !== out.turn && vs !== slot && vetoes[pi] === undefined && !Object.values(vetoes).includes(vs)) vetoes[pi] = vs;
       }
-      if (safe === 'revealed') {
-        const by = c['stolenBy'] === undefined ? -1 : clampInt(c['stolenBy'], 0, out.players.length - 1);
+      const passed: Record<string, true> = {};
+      if (c['passed'] && typeof c['passed'] === 'object') {
+        for (const k of Object.keys(c['passed'])) {
+          const pi = clampInt(k, 0, n - 1);
+          if (pi !== out.turn && vetoes[pi] === undefined && c['passed'][k]) passed[pi] = true;
+        }
+      }
+
+      let phase: H.HitsterPhase = c['phase'] === 'revealed' ? 'revealed' : c['phase'] === 'veto' ? 'veto' : c['phase'] === 'placed' ? 'placed' : 'listen';
+      // Ältere Fassung: Einsprüche liefen noch im Zustand „gelegt“
+      if (phase === 'placed' && Object.keys(vetoes).length) phase = 'veto';
+      // Ohne gewählten Platz gibt es nichts zu bestätigen oder aufzulösen
+      if (phase !== 'listen' && slot === null) phase = 'listen';
+
+      const current: H.HitsterCurrent = { card, phase, slot };
+      if (phase === 'revealed') current.ok = !!c['ok'];
+      if (phase === 'veto' || phase === 'revealed') {
+        if (Object.keys(vetoes).length) current.vetoes = vetoes;
+        if (Object.keys(passed).length) current.passed = passed;
+      }
+      if (phase === 'revealed') {
+        const by = c['stolenBy'] === undefined ? -1 : clampInt(c['stolenBy'], 0, n - 1);
         if (!current.ok && by >= 0 && by !== out.turn) current.stolenBy = by;
         if (c['guessed']) current.guessed = true;
       }

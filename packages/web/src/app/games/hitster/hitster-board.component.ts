@@ -30,7 +30,7 @@ type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; to
   template: `
     @let g = game();
     <sb-game-topbar title="Hitster" [subtitle]="subtitle()" />
-    <main class="wrap main" [class.has-dock2]="!!dock()">
+    <main class="wrap main" [class.has-dock2]="!g.started && !!dock()">
       @if (!g.started) {
         <section class="ht-now">
           @if (prep().kind === 'loading') {
@@ -69,6 +69,7 @@ type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; to
         }
 
         @let c = g.current;
+        @for (key of [turnKey()]; track key) {
         <section class="ht-now" aria-live="polite" [style.--pc]="'var(--p' + active().color + ')'">
           <div class="ht-k">
             <span [sbAvatar]="active()"></span>
@@ -109,8 +110,13 @@ type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; to
             </div>
           }
         </section>
+        }
+      }
+    </main>
 
-        <div class="ht-axis" aria-hidden="true"><span>◀ früher</span><span>später ▶</span></div>
+    @if (g.started) {
+      <section class="ht-full" aria-label="Zeitstrahl">
+        <div class="ht-axis wrap" aria-hidden="true"><span>◀ früher</span><span>später ▶</span></div>
         <div class="ht-track" [class.picking]="vetoing() !== null" [style.--pc]="vetoColor()" tabindex="-1">
           <ol class="ht-rail" [attr.aria-label]="'Zeitstrahl von ' + active().name">
             @for (r of rows(); track r.key) {
@@ -138,45 +144,66 @@ type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; to
           </ol>
         </div>
 
-        @if (vetoPanel(); as vp) {
+      </section>
+
+      @if (vetoPanel(); as vp) {
+        <div class="wrap ht-vetowrap">
           <section class="ht-veto" aria-label="Einspruch">
-            <div class="ht-vh"><h2 class="lbl">Einspruch</h2><span>kostet {{ pluralize(g.rules.vetoCost, 'Token', 'Token') }}</span></div>
+            <div class="ht-vh"><h2 class="lbl">Einspruch?</h2><span>kostet {{ pluralize(g.rules.vetoCost, 'Token', 'Token') }}</span></div>
             @if (vetoing() === null) {
-              <p>Wer den Song anders einsortieren würde, kann jetzt widersprechen. Liegt {{ active().name }} falsch und der Einspruch richtig, bekommt er die Karte.</p>
-              <div class="ht-vchips">
-                @for (o of vp; track o.pi) {
-                  <button class="chip txt" type="button" [style.--pc]="'var(--p' + o.color + ')'" [disabled]="!o.can" (click)="vetoing.set(o.pi)">
-                    <span class="dot"></span>{{ o.name }}@if (o.done) { <small> · hat widersprochen</small> } @else if (!o.afford) { <small> · zu wenige Token</small> }
-                  </button>
+              <p>{{ active().name }} hat den Platz bestätigt. Wer den Song anders einsortieren würde, widerspricht jetzt, alle anderen sagen „kein Einspruch“. Sobald alle entschieden haben, wird von selbst aufgelöst.</p>
+              <ul class="ht-vrows">
+                @for (o of vp.rows; track o.pi) {
+                  <li class="ht-vrow" [class.done]="o.state !== 'pending'" [style.--pc]="'var(--p' + o.color + ')'">
+                    <span class="dot"></span><b>{{ o.name }}</b>
+                    @switch (o.state) {
+                      @case ('veto') { <span class="ht-vstat hit">Einspruch</span> }
+                      @case ('pass') { <span class="ht-vstat">kein Einspruch</span> }
+                      @case ('poor') { <span class="ht-vstat">zu wenige Token</span> }
+                      @default {
+                        @if (o.mine) {
+                          <span class="ht-vbtns">
+                            <button class="btn sm" type="button" (click)="vetoing.set(o.pi)">Einspruch</button>
+                            <button class="btn sm" type="button" (click)="passVeto(o.pi)">Kein Einspruch</button>
+                          </span>
+                        } @else {
+                          <span class="ht-vstat wait">überlegt …</span>
+                        }
+                      }
+                    }
+                  </li>
                 }
-              </div>
+              </ul>
+              @if (canAct() && vp.pending.length) {
+                <div><button class="link" type="button" (click)="closeVeto()">Ohne Warten weiter</button></div>
+              }
             } @else {
               <p>Tippe im Zeitstrahl auf den Platz, an den <b>{{ g.players[vetoing()!]!.name }}</b> den Song legen würde.</p>
               <div class="ht-ctrls"><button class="btn sm" type="button" (click)="vetoing.set(null)">Abbrechen</button></div>
             }
           </section>
-        }
-
-        <ul class="ht-stands" aria-label="Spielstand">
-          @for (p of g.players; track $index; let i = $index) {
-            <li class="ht-stand" [class.turn]="i === g.turn && !finished()" [style.--pc]="'var(--p' + p.color + ')'">
-              <div class="ht-sh">
-                <span [sbAvatar]="p"></span>
-                <span class="ht-sn"><b>{{ p.name }}@if (g.tbl && g.tblSeat === p.color) { <em class="me">du</em> }</b>
-                  <small>
-                    @for (t of tokenDots(p.tokens); track $index) { <span class="ht-tok"></span> }
-                    {{ pluralize(p.tokens, 'Token', 'Token') }}
-                  </small></span>
-                <span class="ht-n">{{ p.line.length }}<small> / {{ g.rules.goal }}</small></span>
-              </div>
-              @if (i !== g.turn || finished()) {
-                <sb-ht-mini-line [cards]="p.line" [mark]="g.current?.stolenBy === i ? g.current!.card.id : ''" />
-              }
-            </li>
-          }
-        </ul>
+        </div>
       }
-    </main>
+
+      <section class="ht-bands" [class.pad]="!!dock()" aria-label="Spielstand">
+        @for (p of g.players; track $index; let i = $index) {
+          <div class="ht-band" [class.turn]="i === g.turn && !finished()" [style.--pc]="'var(--p' + p.color + ')'">
+            <div class="wrap ht-sh">
+              <span [sbAvatar]="p"></span>
+              <span class="ht-sn"><b>{{ p.name }}@if (g.tbl && g.tblSeat === p.color) { <em class="me">du</em> }</b>
+                <small>
+                  @for (t of tokenDots(p.tokens); track $index) { <span class="ht-tok"></span> }
+                  {{ pluralize(p.tokens, 'Token', 'Token') }}
+                </small></span>
+              <span class="ht-n">{{ p.line.length }}<small> / {{ g.rules.goal }}</small></span>
+            </div>
+            @if (i !== g.turn || finished()) {
+              <sb-ht-mini-line [cards]="p.line" [mark]="g.current?.stolenBy === i ? g.current!.card.id : ''" />
+            }
+          </div>
+        }
+      </section>
+    }
 
     @if (dock(); as d) {
       <div class="dock" role="region" aria-label="Nächster Schritt">
@@ -200,7 +227,10 @@ export class HitsterBoard {
   protected readonly finished = computed(() => this.game().status === 'finished');
   protected readonly active = computed(() => hitster.active(this.game()));
   protected readonly winners = computed(() => hitster.reached(this.game()));
-  protected readonly chosen = computed(() => (this.game().current?.phase === 'placed' ? this.game().current!.slot : null));
+  protected readonly chosen = computed(() => {
+    const c = this.game().current;
+    return c && (c.phase === 'placed' || c.phase === 'veto') ? c.slot : null;
+  });
 
   /** Am Live-Tisch darf nur der Platz am Zug handeln; ohne eigenen Platz (oder lokal) darf jeder. */
   protected readonly canAct = computed(() => {
@@ -221,7 +251,7 @@ export class HitsterBoard {
     return pi === null ? null : `var(--p${this.game().players[pi]?.color ?? 0})`;
   });
   /** Platz im Zeitstrahl → Spieler, der dort Einspruch eingelegt hat. */
-  protected readonly vetoAt = computed(() => new Map((this.game().current?.vetoes ?? []).map(v => [v.slot, v.pi])));
+  protected readonly vetoAt = computed(() => new Map(Object.entries(this.game().current?.vetoes ?? {}).map(([pi, slot]) => [slot, +pi] as [number, number])));
 
   protected readonly subtitle = computed(() => {
     const g = this.game();
@@ -251,24 +281,21 @@ export class HitsterBoard {
     return out;
   });
 
-  /** Einspruch-Knöpfe: die anderen Spieler, mit dem, was sie auf diesem Gerät dürfen. `null`, wenn es nichts zu zeigen gibt. */
+  /** Die Einspruchsrunde: jeder andere Spieler mit seinem Stand (Einspruch, verzichtet, zu arm, überlegt noch). `null` außerhalb der Runde. */
   protected readonly vetoPanel = computed(() => {
     const g = this.game();
     const c = g.current;
-    if (this.finished() || !c || c.phase !== 'placed' || g.rules.vetoCost <= 0) return null;
+    if (this.finished() || !c || c.phase !== 'veto') return null;
     const rows = g.players
       .map((p, pi) => ({
         pi,
         name: p.name,
         color: p.color,
-        done: !!c.vetoes?.some(v => v.pi === pi),
-        afford: p.tokens >= g.rules.vetoCost,
         mine: !g.tbl || g.tblSeat == null || p.color === g.tblSeat,
+        state: (c.vetoes?.[pi] !== undefined ? 'veto' : c.passed?.[pi] ? 'pass' : p.tokens < g.rules.vetoCost ? 'poor' : 'pending') as 'veto' | 'pass' | 'poor' | 'pending',
       }))
       .filter(r => r.pi !== g.turn);
-    // Niemand kann sich einen Einspruch leisten und keiner hat schon einen: nichts anzeigen
-    if (!rows.some(r => r.afford || r.done)) return null;
-    return rows.filter(r => r.mine || r.done).map(r => ({ ...r, can: r.afford && !r.done && r.mine }));
+    return { rows, pending: rows.filter(r => r.state === 'pending') };
   });
 
   protected readonly dock = computed(() => {
@@ -277,7 +304,11 @@ export class HitsterBoard {
     if (!g.started || this.finished()) return null;
     if (!c) return g.deck.length ? { label: 'Karte ziehen', act: 'draw' } : { label: 'Der Stapel ist leer: Spiel auswerten', act: 'finish' };
     if (c.phase === 'listen') return { label: 'Wähle einen Platz im Zeitstrahl', act: '' };
-    if (c.phase === 'placed') return { label: 'Auflösen', act: 'reveal' };
+    if (c.phase === 'placed') return { label: 'Platz bestätigen', act: 'confirm' };
+    if (c.phase === 'veto') {
+      const waiting = this.vetoPanel()?.pending.map(r => r.name) ?? [];
+      return { label: waiting.length ? 'Warte auf Einspruch: ' + waiting.join(', ') : 'Wird aufgelöst …', act: '' };
+    }
     if (this.winners()) return { label: 'Spiel auswerten', act: 'finish' };
     return { label: 'Weiter: ' + g.players[(g.turn + 1) % g.players.length]!.name, act: 'next' };
   });
@@ -291,10 +322,13 @@ export class HitsterBoard {
     return g.rules.buyCost > 0 && this.active().tokens >= g.rules.buyCost && g.deck.length > 0 && (!g.current || g.current.phase === 'listen');
   });
 
+  /** Neue Karte oder neuer Spieler: dann fährt die Karte oben neu herein. */
+  protected readonly turnKey = computed(() => this.game().turn + ':' + (this.game().current?.card.id ?? '-'));
+
   /** Ändert sich, wenn im Zeitstrahl etwas Neues sehenswert ist: gewählter Platz, Einspruch, aufgelöste Karte. */
   private readonly focusKey = computed(() => {
     const c = this.game().current;
-    return c ? `${c.card.id}:${c.phase}:${c.slot}:${c.vetoes?.length ?? 0}` : 'turn' + this.game().turn;
+    return c ? `${c.card.id}:${c.phase}:${c.slot}:${Object.keys(c.vetoes ?? {}).length}` : 'turn' + this.game().turn;
   });
 
   constructor() {
@@ -312,7 +346,7 @@ export class HitsterBoard {
     });
     // Einspruch ist nur in seiner Phase möglich
     effect(() => {
-      if (this.game().current?.phase !== 'placed') untracked(() => this.vetoing.set(null));
+      if (this.game().current?.phase !== 'veto') untracked(() => this.vetoing.set(null));
     });
     // Zeitstrahl zur interessanten Stelle scrollen
     effect(() => {
@@ -331,7 +365,9 @@ export class HitsterBoard {
     const track = root.querySelector<HTMLElement>('.ht-track');
     if (el && track) {
       // Nur den Zeitstrahl bewegen, nicht die ganze Seite
-      const left = el.offsetLeft - track.clientWidth / 2 + el.offsetWidth / 2;
+      const t = track.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      const left = track.scrollLeft + (r.left - t.left) - track.clientWidth / 2 + r.width / 2;
       track.scrollTo({ left: Math.max(0, left), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
     } else if (track && !this.game().current) track.scrollTo({ left: 0 });
   }
@@ -367,7 +403,7 @@ export class HitsterBoard {
   protected run(act: string): void {
     if (!this.canAct()) return;
     if (act === 'draw') this.draw();
-    else if (act === 'reveal') this.reveal();
+    else if (act === 'confirm') this.confirm();
     else if (act === 'next') this.next();
     else if (act === 'finish') this.ctx.finish();
   }
@@ -377,12 +413,12 @@ export class HitsterBoard {
     if (this.ctx.update<hitster.HitsterGame, string | null>(g => hitster.draw(g)) === null) this.ctx.notify('Der Stapel ist leer');
   }
 
-  /** Im Zeitstrahl kann man legen (Spieler am Zug) oder, während ein Einspruch angesetzt wird, den Einspruchsplatz wählen. */
+  /** Im Zeitstrahl kann man legen (Spieler am Zug, bis er bestätigt hat) oder in der Einspruchsrunde den Einspruchsplatz wählen. */
   protected slotEnabled(slot: number): boolean {
     const c = this.game().current;
-    if (!c || c.phase === 'revealed' || this.finished()) return false;
-    if (this.vetoing() !== null) return slot !== c.slot && !c.vetoes?.some(v => v.slot === slot);
-    return this.canAct() && !c.vetoes?.length;
+    if (!c || this.finished()) return false;
+    if (c.phase === 'veto') return this.vetoing() !== null && slot !== c.slot && !Object.values(c.vetoes ?? {}).includes(slot);
+    return (c.phase === 'listen' || c.phase === 'placed') && this.canAct();
   }
 
   protected onSlot(slot: number): void {
@@ -393,14 +429,34 @@ export class HitsterBoard {
       return;
     }
     const error = this.ctx.update<hitster.HitsterGame, string | null>(g => hitster.veto(g, pi, slot));
-    if (error) this.ctx.notify(error);
-    else this.ctx.notify(`${this.game().players[pi]!.name} legt Einspruch ein`, true);
     this.vetoing.set(null);
+    if (error) this.ctx.notify(error);
+    else this.announce(`${this.game().players[pi]!.name} legt Einspruch ein`);
   }
 
-  protected reveal(): void {
-    const r = this.ctx.update<hitster.HitsterGame, ReturnType<typeof hitster.reveal>>(g => hitster.reveal(g));
-    if (r) this.ctx.notify(r.message, true);
+  /** Meldet das Ergebnis, wenn die Karte durch diese Aktion aufgelöst wurde, sonst die übergebene Meldung. */
+  private announce(message: string): void {
+    const g = this.game();
+    this.ctx.notify(g.current?.phase === 'revealed' ? hitster.revealMessage(g) : message, true);
+  }
+
+  /** Der Spieler am Zug bestätigt den Platz. Danach können die anderen widersprechen; gibt es niemanden, wird gleich aufgelöst. */
+  protected confirm(): void {
+    const r = this.ctx.update<hitster.HitsterGame, ReturnType<typeof hitster.confirm>>(g => hitster.confirm(g));
+    if (r?.resolved) this.ctx.notify(hitster.revealMessage(this.game()), true);
+  }
+
+  protected passVeto(pi: number): void {
+    const error = this.ctx.update<hitster.HitsterGame, string | null>(g => hitster.pass(g, pi));
+    if (error) this.ctx.notify(error);
+    else this.announce(`${this.game().players[pi]!.name}: kein Einspruch`);
+  }
+
+  /** Ohne auf die Übrigen zu warten weiter; wer noch nicht entschieden hat, widerspricht nicht. */
+  protected closeVeto(): void {
+    const error = this.ctx.update<hitster.HitsterGame, string | null>(g => hitster.closeVeto(g));
+    if (error) this.ctx.notify(error);
+    else this.announce('Einspruchsrunde beendet');
   }
 
   protected next(): void {

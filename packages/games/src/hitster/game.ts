@@ -18,8 +18,11 @@ export interface HitsterPlayer extends SeatedPlayer {
   tokens: number;
 }
 
-/** `listen`: Karte gezogen, noch nicht gelegt. `placed`: Position gewählt. `revealed`: aufgelöst, Zug noch nicht beendet. */
-export type HitsterPhase = 'listen' | 'placed' | 'revealed';
+/**
+ * `listen`: Karte gezogen, noch nicht gelegt. `placed`: Platz gewählt, der Spieler kann ihn noch ändern.
+ * `veto`: Platz bestätigt, die anderen entscheiden über einen Einspruch. `revealed`: aufgelöst, Zug noch nicht beendet.
+ */
+export type HitsterPhase = 'listen' | 'placed' | 'veto' | 'revealed';
 
 export interface HitsterCurrent {
   card: HitsterCard;
@@ -28,19 +31,16 @@ export interface HitsterCurrent {
   slot: number | null;
   /** Nur nach dem Auflösen: richtig gelegt? */
   ok?: boolean;
-  /** Einsprüche anderer Spieler in der Reihenfolge, in der sie eingelegt wurden. */
-  vetoes?: HitsterVeto[];
+  /** Einsprüche: Spieler (Index in `players`) → gewählter Platz. Als Zuordnung statt Liste, damit gleichzeitige Einsprüche am Live-Tisch sich nicht überschreiben. */
+  vetoes?: Record<string, number>;
+  /** Spieler, die „kein Einspruch“ gesagt haben. */
+  passed?: Record<string, true>;
   /** Nur nach dem Auflösen: Wer die falsch gelegte Karte per Einspruch gewonnen hat (Index in `players`). */
   stolenBy?: number;
   /** Token für Titel und Interpret wurde für diese Karte schon vergeben. */
   guessed?: boolean;
 }
 
-/** Ein Einspruch: Spieler `pi` hält einen anderen Platz im Zeitstrahl des Spielers am Zug für richtig und setzt dafür ein Token ein. */
-export interface HitsterVeto {
-  pi: number;
-  slot: number;
-}
 
 export interface DeckRef {
   /** Spotify-Playlist-ID. */
@@ -92,8 +92,10 @@ export interface HitsterOptions extends HitsterRules {
 export type HitsterUndo =
   | { k: 'draw' }
   | { k: 'place'; prev: number | null }
-  | { k: 'reveal'; at: number; ok: boolean; by: number | null }
-  | { k: 'veto'; pi: number; cost: number }
+  | { k: 'confirm'; auto: boolean }
+  | { k: 'veto'; pi: number; cost: number; auto: boolean }
+  | { k: 'pass'; pi: number; auto: boolean }
+  | { k: 'close'; pis: number[] }
   | { k: 'end'; turn: number; current: HitsterCurrent }
   | { k: 'skip'; cost: number }
   | { k: 'guess'; pi: number; delta: number }
@@ -295,7 +297,7 @@ export function draw(g: HitsterGame): string | null {
 /** Wählt den Platz im Zeitstrahl. Solange nicht aufgelöst ist, darf er geändert werden. */
 export function place(g: HitsterGame, slot: number): boolean {
   const c = g.current;
-  if (!c || c.phase === 'revealed' || c.vetoes?.length) return false;
+  if (!c || (c.phase !== 'listen' && c.phase !== 'placed')) return false;
   const line = active(g).line;
   if (!Number.isInteger(slot) || slot < 0 || slot > line.length) return false;
   pushUndo(g.undo, { k: 'place', prev: c.slot });
@@ -306,7 +308,7 @@ export function place(g: HitsterGame, slot: number): boolean {
 
 /**
  * Wertet die gelegte Karte. Richtig: sie kommt in den Zeitstrahl des Spielers am Zug. Falsch: Wer per Einspruch
- * einen passenden Platz gewählt hat (der Erste in der Reihenfolge der Einsprüche), bekommt sie in den eigenen
+ * einen passenden Platz gewählt hat (der Erste reihum nach dem Spieler am Zug), bekommt sie in den eigenen
  * Zeitstrahl, sonst ist sie raus.
  */
 function applyReveal(g: HitsterGame): { ok: boolean; by: number | null } {
@@ -316,12 +318,16 @@ function applyReveal(g: HitsterGame): { ok: boolean; by: number | null } {
   let by: number | null = null;
   if (ok) line.splice(c.slot!, 0, c.card);
   else {
-    const hit = (c.vetoes ?? []).find(v => fits(line, v.slot, c.card.year));
-    if (hit) {
-      by = hit.pi;
-      const mine = g.players[hit.pi]!.line;
+    const n = g.players.length;
+    for (let k = 1; k < n && by === null; k++) {
+      const pi = (g.turn + k) % n;
+      const slot = c.vetoes?.[pi];
+      if (slot !== undefined && fits(line, slot, c.card.year)) by = pi;
+    }
+    if (by !== null) {
+      const mine = g.players[by]!.line;
       mine.splice(insertionIndex(mine, c.card.year), 0, c.card);
-      c.stolenBy = hit.pi;
+      c.stolenBy = by;
     } else g.discard.push(c.card);
   }
   c.phase = 'revealed';
@@ -329,7 +335,8 @@ function applyReveal(g: HitsterGame): { ok: boolean; by: number | null } {
   return { ok, by };
 }
 
-function unapplyReveal(g: HitsterGame): void {
+/** Nimmt eine Auflösung zurück. `back` ist die Phase davor (`placed`, oder `veto`, wenn die Einspruchsrunde lief). */
+function unapplyReveal(g: HitsterGame, back: 'placed' | 'veto'): void {
   const c = g.current!;
   const take = (line: HitsterCard[]) => {
     const at = line.findIndex(x => x.id === c.card.id);
@@ -338,41 +345,105 @@ function unapplyReveal(g: HitsterGame): void {
   if (c.ok) take(active(g).line);
   else if (c.stolenBy !== undefined) take(g.players[c.stolenBy]!.line);
   else g.discard.pop();
-  c.phase = 'placed';
+  c.phase = back;
   delete c.ok;
   delete c.stolenBy;
 }
 
-/** Löst auf, ob die Karte richtig liegt. */
-export function reveal(g: HitsterGame): { ok: boolean; by: number | null; message: string } | null {
+/** Meldung zum Ergebnis einer aufgelösten Karte. */
+export function revealMessage(g: HitsterGame): string {
+  const c = g.current;
+  if (!c || c.phase !== 'revealed') return '';
+  if (c.ok) return `Richtig! ${c.card.year}`;
+  return c.stolenBy !== undefined ? `${c.card.year}: ${g.players[c.stolenBy]!.name} gewinnt die Karte per Einspruch` : `Leider falsch: ${c.card.year}`;
+}
+
+/** Gibt es überhaupt jemanden, der widersprechen könnte? Sonst entfällt die Einspruchsrunde. */
+function vetoPossible(g: HitsterGame): boolean {
+  return g.rules.vetoCost > 0 && g.players.some((p, i) => i !== g.turn && p.tokens >= g.rules.vetoCost);
+}
+
+/**
+ * Wer in der Einspruchsrunde noch entscheiden muss: nicht der Spieler am Zug, nicht wer schon Einspruch eingelegt oder
+ * „kein Einspruch“ gesagt hat, und nur, wer sich einen Einspruch leisten kann (alle anderen widersprechen ohnehin nicht).
+ */
+export function pendingVeto(g: HitsterGame): number[] {
+  const c = g.current;
+  if (!c || c.phase !== 'veto') return [];
+  return g.players.map((_, i) => i).filter(i => i !== g.turn && c.vetoes?.[i] === undefined && !c.passed?.[i] && g.players[i]!.tokens >= g.rules.vetoCost);
+}
+
+/** Haben alle entschieden, wird automatisch aufgelöst. Gibt zurück, ob aufgelöst wurde. */
+function settle(g: HitsterGame): boolean {
+  if (pendingVeto(g).length) return false;
+  applyReveal(g);
+  const last = g.undo[g.undo.length - 1];
+  // Aktion und automatische Auflösung sind ein Schritt: ein Rückgängig nimmt beides zurück
+  if (last?.k === 'veto' || last?.k === 'pass') last.auto = true;
+  return true;
+}
+
+/**
+ * Der Spieler am Zug bestätigt seinen Platz. Danach können die anderen widersprechen. Gibt es niemanden, der sich einen
+ * Einspruch leisten kann (oder sind Einsprüche aus), wird sofort aufgelöst. Gibt `null` zurück, wenn nichts zu bestätigen ist.
+ */
+export function confirm(g: HitsterGame): { resolved: boolean } | null {
   const c = g.current;
   if (!c || c.phase !== 'placed' || c.slot === null) return null;
-  const at = c.slot;
-  const { ok, by } = applyReveal(g);
-  pushUndo(g.undo, { k: 'reveal', at, ok, by });
-  const message = ok ? `Richtig! ${c.card.year}` : by !== null ? `${c.card.year}: ${g.players[by]!.name} gewinnt die Karte per Einspruch` : `Leider falsch: ${c.card.year}`;
-  return { ok, by, message };
+  if (vetoPossible(g)) {
+    c.phase = 'veto';
+    pushUndo(g.undo, { k: 'confirm', auto: false });
+    return { resolved: false };
+  }
+  applyReveal(g);
+  pushUndo(g.undo, { k: 'confirm', auto: true });
+  return { resolved: true };
 }
 
 /**
  * Einspruch: Ein anderer Spieler setzt Token ein und nennt einen anderen Platz im Zeitstrahl des Spielers am Zug.
- * Geht nur nach dem Legen und vor dem Auflösen, einmal je Spieler, und jeder Platz nur einmal. Das Token ist weg, egal wie es ausgeht.
- * Gibt eine Fehlermeldung zurück oder `null`, wenn es geklappt hat.
+ * Geht nur in der Einspruchsrunde, einmal je Spieler, und jeder Platz nur einmal. Das Token ist weg, egal wie es ausgeht.
+ * Haben danach alle entschieden, wird aufgelöst. Gibt eine Fehlermeldung zurück oder `null`, wenn es geklappt hat.
  */
 export function veto(g: HitsterGame, pi: number, slot: number): string | null {
   const c = g.current;
   const cost = g.rules.vetoCost;
   if (cost <= 0) return 'Einsprüche sind ausgeschaltet';
-  if (!c || c.phase !== 'placed' || c.slot === null) return 'Einspruch geht erst, wenn die Karte gelegt ist';
+  if (!c || c.phase !== 'veto' || c.slot === null) return 'Einspruch geht erst, wenn der Platz bestätigt ist';
   const p = g.players[pi];
   if (!p || pi === g.turn) return 'Der Spieler am Zug kann keinen Einspruch einlegen';
-  if (c.vetoes?.some(v => v.pi === pi)) return `${p.name} hat schon Einspruch eingelegt`;
+  if (c.vetoes?.[pi] !== undefined || c.passed?.[pi]) return `${p.name} hat schon entschieden`;
   if (p.tokens < cost) return 'Zu wenige Token';
   if (!Number.isInteger(slot) || slot < 0 || slot > active(g).line.length) return 'Ungültiger Platz';
-  if (slot === c.slot || c.vetoes?.some(v => v.slot === slot)) return 'Dieser Platz ist schon belegt';
+  if (slot === c.slot || Object.values(c.vetoes ?? {}).includes(slot)) return 'Dieser Platz ist schon belegt';
   p.tokens -= cost;
-  (c.vetoes ??= []).push({ pi, slot });
-  pushUndo(g.undo, { k: 'veto', pi, cost });
+  (c.vetoes ??= {})[pi] = slot;
+  pushUndo(g.undo, { k: 'veto', pi, cost, auto: false });
+  settle(g);
+  return null;
+}
+
+/** „Kein Einspruch“: Der Spieler verzichtet. Haben danach alle entschieden, wird aufgelöst. Gibt eine Fehlermeldung oder `null` zurück. */
+export function pass(g: HitsterGame, pi: number): string | null {
+  const c = g.current;
+  if (!c || c.phase !== 'veto') return 'Gerade läuft keine Einspruchsrunde';
+  const p = g.players[pi];
+  if (!p || pi === g.turn) return 'Der Spieler am Zug entscheidet hier nichts';
+  if (c.vetoes?.[pi] !== undefined || c.passed?.[pi]) return `${p.name} hat schon entschieden`;
+  (c.passed ??= {})[pi] = true;
+  pushUndo(g.undo, { k: 'pass', pi, auto: false });
+  settle(g);
+  return null;
+}
+
+/** Beendet die Einspruchsrunde, ohne auf die Übrigen zu warten (z. B. weil jemand nicht mehr am Tisch ist). Wer noch nicht entschieden hat, widerspricht nicht. */
+export function closeVeto(g: HitsterGame): string | null {
+  const c = g.current;
+  if (!c || c.phase !== 'veto') return 'Gerade läuft keine Einspruchsrunde';
+  const pis = pendingVeto(g);
+  for (const pi of pis) (c.passed ??= {})[pi] = true;
+  pushUndo(g.undo, { k: 'close', pis });
+  applyReveal(g);
   return null;
 }
 
@@ -439,7 +510,7 @@ function findCards(g: HitsterGame, id: string): HitsterCard[] {
 function setYear(g: HitsterGame, id: string, year: number): void {
   const c = g.current;
   const redo = !!c && c.card.id === id && c.phase === 'revealed';
-  if (redo) unapplyReveal(g);
+  if (redo) unapplyReveal(g, 'placed');
   for (const card of findCards(g, id)) card.year = year;
   for (const p of g.players) p.line.sort((a, b) => a.year - b.year);
   if (redo) applyReveal(g);
@@ -472,8 +543,13 @@ export function undo(g: HitsterGame): string | null {
         c.phase = u.prev === null ? 'listen' : 'placed';
       }
       break;
-    case 'reveal':
-      if (c && c.phase === 'revealed') unapplyReveal(g);
+    case 'confirm':
+      if (c) {
+        if (c.phase === 'revealed') unapplyReveal(g, 'placed');
+        c.phase = 'placed';
+        delete c.vetoes;
+        delete c.passed;
+      }
       break;
     case 'end':
       // Die Karte steht schon im Zeitstrahl bzw. auf dem Ablagestapel, nur der Zug geht zurück.
@@ -493,11 +569,23 @@ export function undo(g: HitsterGame): string | null {
       break;
     case 'veto': {
       const q = g.players[u.pi];
-      if (c?.vetoes) {
-        c.vetoes = c.vetoes.filter(v => v.pi !== u.pi);
-        if (!c.vetoes.length) delete c.vetoes;
+      if (c) {
+        if (c.phase === 'revealed') unapplyReveal(g, 'veto');
+        if (c.vetoes) {
+          delete c.vetoes[u.pi];
+          if (!Object.keys(c.vetoes).length) delete c.vetoes;
+        }
       }
       if (q) q.tokens = Math.min(MAX_TOKENS, q.tokens + u.cost);
+      break;
+    }
+    case 'pass':
+    case 'close': {
+      if (c) {
+        if (c.phase === 'revealed') unapplyReveal(g, 'veto');
+        for (const pi of u.k === 'pass' ? [u.pi] : u.pis) delete c.passed?.[pi];
+        if (c.passed && !Object.keys(c.passed).length) delete c.passed;
+      }
       break;
     }
     case 'buy': {

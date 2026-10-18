@@ -19,6 +19,14 @@ function game(deck: H.HitsterCard[], options: Partial<H.HitsterOptions> = {}): H
   return g;
 }
 
+/** Platz bestätigen und, falls eine Einspruchsrunde läuft, ohne Widerspruch beenden. Gibt das Ergebnis zurück, `null`, wenn nichts zu bestätigen war. */
+function reveal(g: H.HitsterGame): { ok: boolean; by: number | null; message: string } | null {
+  if (!H.confirm(g)) return null;
+  if (g.current?.phase === 'veto') H.closeVeto(g);
+  const c = g.current!;
+  return { ok: !!c.ok, by: c.stolenBy ?? null, message: H.revealMessage(g) };
+}
+
 const fill = (n: number, from = 1980) => Array.from({ length: n }, (_, i) => card('t' + i, from + i));
 
 describe('Hitster: Start', () => {
@@ -66,7 +74,7 @@ describe('Hitster: Legen und Auflösen', () => {
     H.draw(g);
     expect(H.place(g, 1)).toBe(true);
     expect(g.current!.phase).toBe('placed');
-    expect(H.reveal(g)!.ok).toBe(true);
+    expect(reveal(g)!.ok).toBe(true);
     expect(g.players[0]!.line.map(x => x.id)).toEqual(['first', 'new']);
     const end = H.endTurn(g)!;
     expect(end.next).toBe(1);
@@ -79,7 +87,7 @@ describe('Hitster: Legen und Auflösen', () => {
     g.deck = [card('old', 1970), ...g.deck];
     H.draw(g);
     H.place(g, 1); // 1970 hinter 2000 ist falsch
-    expect(H.reveal(g)!.ok).toBe(false);
+    expect(reveal(g)!.ok).toBe(false);
     expect(g.discard.map(c => c.id)).toEqual(['old']);
     expect(H.active(g).line).toHaveLength(1);
   });
@@ -90,9 +98,9 @@ describe('Hitster: Legen und Auflösen', () => {
     expect(H.place(g, 0)).toBe(true);
     expect(H.place(g, 1)).toBe(true);
     expect(H.place(g, 5)).toBe(false);
-    H.reveal(g);
+    reveal(g);
     expect(H.place(g, 0)).toBe(false);
-    expect(H.reveal(g)).toBeNull();
+    expect(reveal(g)).toBeNull();
   });
 
   it('zieht nicht doppelt und nicht ohne Karte', () => {
@@ -132,7 +140,7 @@ describe('Hitster: Token', () => {
     expect(H.rewardGuess(g)).toBeNull(); // vor dem Auflösen lässt es sich nicht prüfen
     H.place(g, 0);
     expect(H.rewardGuess(g)).toBeNull();
-    H.reveal(g);
+    reveal(g);
     expect(H.rewardGuess(g)).toBe('Anna: +1 Token');
     expect(H.active(g).tokens).toBe(3);
     expect(H.rewardGuess(g)).toBeNull();
@@ -141,7 +149,7 @@ describe('Hitster: Token', () => {
     const none = game(fill(10), { guessReward: 0 });
     H.draw(none);
     H.place(none, 0);
-    H.reveal(none);
+    reveal(none);
     expect(H.rewardGuess(none)).toBeNull();
   });
 
@@ -165,7 +173,7 @@ describe('Hitster: Jahr korrigieren', () => {
     g.deck = [card('x', 1970), ...g.deck];
     H.draw(g);
     H.place(g, 1);
-    expect(H.reveal(g)!.ok).toBe(false); // laut Quelle 1970, also vor 2000
+    expect(reveal(g)!.ok).toBe(false); // laut Quelle 1970, also vor 2000
 
     expect(H.fixYear(g, 'x', 2010)).toMatch(/Song x/); // Original ist doch später erschienen
     expect(g.current!.ok).toBe(true);
@@ -221,12 +229,15 @@ function start(g: H.HitsterGame) {
 }
 
 describe('Hitster: Rückgängig', () => {
-  it('nimmt Ziehen, Legen, Auflösen und Zugende schrittweise zurück', () => {
+  it('nimmt Ziehen, Legen, Bestätigen, Verzicht und Zugende schrittweise zurück', () => {
     const g = game(fill(10));
     const deckBefore = g.deck.map(c => c.id);
     H.draw(g);
     H.place(g, 1);
-    H.reveal(g);
+    expect(H.confirm(g)).toEqual({ resolved: false }); // Ben kann widersprechen
+    expect(g.current!.phase).toBe('veto');
+    expect(H.pass(g, 1)).toBeNull(); // Ben verzichtet: alle haben entschieden, es wird von selbst aufgelöst
+    expect(g.current!.phase).toBe('revealed');
     H.endTurn(g);
     expect(g.turn).toBe(1);
 
@@ -235,11 +246,16 @@ describe('Hitster: Rückgängig', () => {
     expect(g.turn).toBe(0);
     expect(g.current!.phase).toBe('revealed');
 
-    hitsterEngine.undo(g); // Auflösung
-    expect(g.current!.phase).toBe('placed');
+    // Aktion und automatische Auflösung sind ein Schritt
+    expect(hitsterEngine.describeUndo(g)).toBe('Verzicht zurücknehmen');
+    hitsterEngine.undo(g);
+    expect(g.current!.phase).toBe('veto');
+    expect(g.current!.passed).toBeUndefined();
     expect(H.active(g).line).toHaveLength(1);
     expect(g.discard).toHaveLength(0);
 
+    hitsterEngine.undo(g); // Bestätigung
+    expect(g.current!.phase).toBe('placed');
     hitsterEngine.undo(g); // Platz
     expect(g.current!.phase).toBe('listen');
     hitsterEngine.undo(g); // Ziehen
@@ -259,14 +275,16 @@ describe('Hitster: Rückgängig', () => {
     expect(g.discard).toHaveLength(0);
 
     H.place(g, 0);
-    H.reveal(g);
+    H.confirm(g);
+    H.closeVeto(g);
     H.rewardGuess(g);
     expect(H.active(g).tokens).toBe(5);
     expect(g.current!.guessed).toBe(true);
     hitsterEngine.undo(g);
     expect(H.active(g).tokens).toBe(4);
     expect(g.current!.guessed).toBeUndefined();
-    hitsterEngine.undo(g); // Auflösung
+    hitsterEngine.undo(g); // Einspruchsrunde beendet
+    hitsterEngine.undo(g); // Bestätigung
     hitsterEngine.undo(g); // Platz
     hitsterEngine.undo(g); // Ziehen
     expect(g.current).toBeNull();
@@ -404,7 +422,9 @@ describe('Hitster: Live-Tisch', () => {
     same(); // Karte gezogen
     H.place(g, 1);
     same(); // Platz gewählt
-    H.reveal(g);
+    H.confirm(g);
+    same(); // bestätigt, Einspruchsrunde läuft
+    H.closeVeto(g);
     same(); // aufgelöst
     H.endTurn(g);
     same(); // nächster Spieler
@@ -428,42 +448,94 @@ describe('Hitster: Einspruch', () => {
     const g = H.create(trio, options);
     H.start(g, fill(12), () => 0.999);
     g.players[0]!.line = [card('first', 2000)];
-    g.deck = [card('new', 2010), ...g.deck];
-    H.draw(g);
+    g.current = { card: card('new', 2010), phase: 'listen', slot: null };
     return g;
   }
 
-  it('gibt eine falsch gelegte Karte dem, der per Einspruch richtig liegt', () => {
+  /** Legt und bestätigt: danach läuft die Einspruchsrunde. */
+  function confirmed(slot: number, options: Partial<H.HitsterOptions> = {}) {
+    const g = round(options);
+    H.place(g, slot);
+    H.confirm(g);
+    return g;
+  }
+
+  it('lässt den Platz bis zur Bestätigung ändern und sperrt ihn danach', () => {
     const g = round();
-    H.place(g, 0); // falsch: 2010 liegt nicht vor 2000
+    H.place(g, 0);
+    expect(H.place(g, 1)).toBe(true);
+    expect(g.current!.phase).toBe('placed');
+    expect(H.veto(g, 1, 0)).toMatch(/erst, wenn der Platz bestätigt/);
+    expect(H.confirm(g)).toEqual({ resolved: false });
+    expect(g.current!.phase).toBe('veto');
+    expect(H.place(g, 0)).toBe(false);
+    expect(g.current!.slot).toBe(1);
+  });
+
+  it('wartet, bis jeder einen Einspruch gelegt oder verzichtet hat, und löst dann von selbst auf', () => {
+    const g = confirmed(1);
+    expect(H.pendingVeto(g)).toEqual([1, 2]);
+    expect(H.pass(g, 1)).toBeNull();
+    expect(g.current!.phase).toBe('veto'); // Cleo fehlt noch
+    expect(H.pendingVeto(g)).toEqual([2]);
+    expect(H.veto(g, 2, 0)).toBeNull(); // Cleo widerspricht: damit haben alle entschieden
+    expect(g.current!.phase).toBe('revealed');
+    expect(g.current).toMatchObject({ ok: true }); // Anna lag richtig
+    expect(g.players[0]!.line.map(c => c.id)).toEqual(['first', 'new']);
+  });
+
+  it('überspringt die Einspruchsrunde, wenn niemand sich einen Einspruch leisten kann oder er aus ist', () => {
+    const poor = round();
+    poor.players[1]!.tokens = 0;
+    poor.players[2]!.tokens = 0;
+    H.place(poor, 1);
+    expect(H.confirm(poor)).toEqual({ resolved: true });
+    expect(poor.current!.phase).toBe('revealed');
+
+    const off = round({ vetoCost: 0 });
+    H.place(off, 1);
+    expect(H.confirm(off)).toEqual({ resolved: true });
+    expect(H.veto(off, 1, 0)).toMatch(/ausgeschaltet/);
+  });
+
+  it('wartet nicht auf Spieler, die sich keinen Einspruch leisten können', () => {
+    const g = round();
+    g.players[2]!.tokens = 0; // Cleo hat nichts
+    H.place(g, 1);
+    H.confirm(g);
+    expect(H.pendingVeto(g)).toEqual([1]);
+    H.pass(g, 1);
+    expect(g.current!.phase).toBe('revealed'); // Cleo musste nicht entscheiden
+  });
+
+  it('gibt eine falsch gelegte Karte dem, der per Einspruch richtig liegt', () => {
+    const g = confirmed(0); // falsch: 2010 liegt nicht vor 2000
     expect(H.veto(g, 1, 1)).toBeNull(); // Ben nennt hinter der 2000
     expect(g.players[1]!.tokens).toBe(1);
+    expect(g.current!.phase).toBe('veto'); // Cleo fehlt noch
+    H.pass(g, 2);
 
-    const r = H.reveal(g)!;
-    expect(r).toMatchObject({ ok: false, by: 1 });
-    expect(r.message).toMatch(/Ben gewinnt die Karte per Einspruch/);
+    expect(g.current).toMatchObject({ phase: 'revealed', ok: false, stolenBy: 1 });
+    expect(H.revealMessage(g)).toMatch(/Ben gewinnt die Karte per Einspruch/);
     expect(g.players[1]!.line.map(c => c.id)).toContain('new');
     expect(g.players[0]!.line.map(c => c.id)).toEqual(['first']);
     expect(g.discard).toHaveLength(0);
-    expect(g.current!.stolenBy).toBe(1);
 
-    hitsterEngine.undo(g); // Auflösung
+    hitsterEngine.undo(g); // Verzicht von Cleo samt Auflösung
+    expect(g.current!.phase).toBe('veto');
     expect(g.players[1]!.line.map(c => c.id)).not.toContain('new');
-    expect(g.current!.phase).toBe('placed');
-    expect(g.current!.stolenBy).toBeUndefined();
     expect(g.players[1]!.tokens).toBe(1);
-    hitsterEngine.undo(g); // Einspruch
+    hitsterEngine.undo(g); // Einspruch von Ben
     expect(g.players[1]!.tokens).toBe(2);
     expect(g.current!.vetoes).toBeUndefined();
+    expect(H.pendingVeto(g)).toEqual([1, 2]);
   });
 
   it('lässt das Token verfallen, wenn der Spieler am Zug richtig lag', () => {
-    const g = round();
-    H.place(g, 1);
+    const g = confirmed(1);
     H.veto(g, 2, 0);
-    const r = H.reveal(g)!;
-    expect(r).toMatchObject({ ok: true, by: null });
-    expect(g.players[0]!.line.map(c => c.id)).toEqual(['first', 'new']);
+    H.pass(g, 1);
+    expect(g.current).toMatchObject({ ok: true });
     expect(g.players[2]!.tokens).toBe(1);
     expect(g.players[2]!.line).toHaveLength(1);
   });
@@ -471,103 +543,115 @@ describe('Hitster: Einspruch', () => {
   it('wirft die Karte weg, wenn auch der Einspruch falsch liegt', () => {
     const g = round();
     g.players[0]!.line = [card('f1', 1980), card('f2', 2000)];
-    g.current = { card: card('new', 2010), phase: 'listen', slot: null }; // gehört ans Ende (Platz 2)
-    H.place(g, 0); // falsch
-    expect(H.veto(g, 1, 1)).toBeNull(); // Ben legt zwischen 1980 und 2000: auch falsch
-    const r = H.reveal(g)!;
-    expect(r).toMatchObject({ ok: false, by: null });
+    H.place(g, 0); // falsch: 2010 gehört ans Ende
+    H.confirm(g);
+    H.veto(g, 1, 1); // Ben legt zwischen 1980 und 2000: auch falsch
+    H.pass(g, 2);
+    expect(g.current).toMatchObject({ ok: false });
+    expect(g.current!.stolenBy).toBeUndefined();
     expect(g.discard.map(c => c.id)).toEqual(['new']);
-    expect(g.players[1]!.line).toHaveLength(1);
     expect(g.players[1]!.tokens).toBe(1); // das Token ist trotzdem weg
   });
 
-  it('gibt die Karte dem ersten passenden Einspruch, wenn mehrere richtig liegen', () => {
+  it('gibt die Karte bei mehreren richtigen Einsprüchen dem, der reihum zuerst dran ist', () => {
     const g = round();
     // 2000 passt zwischen 1990 und 2010 an drei Plätzen (vor, zwischen und hinter den beiden 2000ern)
     g.players[0]!.line = [card('f1', 1990), card('f2', 2000), card('f3', 2000), card('f4', 2010)];
     g.current = { card: card('mid', 2000), phase: 'listen', slot: null };
     H.place(g, 0); // falsch: 2000 liegt nicht vor der 1990
+    H.confirm(g);
     H.veto(g, 2, 2); // Cleo zuerst, richtig
-    H.veto(g, 1, 1); // dann Ben, auch richtig
-    expect(H.reveal(g)).toMatchObject({ ok: false, by: 2 });
-    expect(g.players[2]!.line.map(c => c.id)).toContain('mid');
-    expect(g.players[1]!.line.map(c => c.id)).not.toContain('mid');
+    H.veto(g, 1, 1); // dann Ben, auch richtig: im Uhrzeigersinn nach Anna kommt aber Ben vor Cleo
+    expect(g.current).toMatchObject({ ok: false, stolenBy: 1 });
+    expect(g.players[1]!.line.map(c => c.id)).toContain('mid');
+    expect(g.players[2]!.line.map(c => c.id)).not.toContain('mid');
   });
 
   it('prüft die Voraussetzungen', () => {
-    const g = round();
-    expect(H.veto(g, 1, 1)).toMatch(/erst, wenn die Karte gelegt/);
-    H.place(g, 0);
+    const g = confirmed(0);
     expect(H.veto(g, 0, 1)).toMatch(/Spieler am Zug/);
     expect(H.veto(g, 1, 0)).toMatch(/schon belegt/);
     expect(H.veto(g, 1, 9)).toMatch(/Ungültiger Platz/);
-    g.players[2]!.tokens = 0;
-    expect(H.veto(g, 2, 1)).toBe('Zu wenige Token');
     expect(H.veto(g, 1, 1)).toBeNull();
-    expect(H.veto(g, 1, 1)).toMatch(/schon Einspruch/);
-    g.players[2]!.tokens = 2;
-    expect(H.veto(g, 2, 1)).toMatch(/schon belegt/);
+    expect(g.current!.phase).toBe('veto'); // Cleo hat noch nicht entschieden
+    expect(H.pass(g, 1)).toMatch(/schon entschieden/);
+    expect(H.veto(g, 2, 1)).toMatch(/schon belegt/); // Platz 1 hat Ben
+    expect(H.pass(g, 0)).toMatch(/Spieler am Zug/);
+    expect(H.pass(round(), 1)).toMatch(/keine Einspruchsrunde/);
 
-    const off = round({ vetoCost: 0 });
-    H.place(off, 0);
-    expect(H.veto(off, 1, 1)).toMatch(/ausgeschaltet/);
+    const poor = round();
+    poor.players[2]!.tokens = 0;
+    H.place(poor, 0);
+    H.confirm(poor);
+    expect(H.veto(poor, 2, 1)).toBe('Zu wenige Token');
   });
 
-  it('sperrt den Platz, sobald ein Einspruch vorliegt, und kostet nach den Regeln', () => {
-    const g = round({ vetoCost: 2 });
-    H.place(g, 0);
+  it('kostet nach den Regeln', () => {
+    const g = confirmed(0, { vetoCost: 2 });
     expect(H.veto(g, 1, 1)).toBeNull();
     expect(g.players[1]!.tokens).toBe(0);
-    expect(H.place(g, 1)).toBe(false);
-    expect(g.current!.slot).toBe(0);
+  });
+
+  it('lässt die Runde beenden, ohne auf Säumige zu warten', () => {
+    const g = confirmed(0);
+    H.veto(g, 1, 1);
+    expect(g.current!.phase).toBe('veto'); // Cleo hat noch nicht entschieden
+    expect(H.closeVeto(g)).toBeNull();
+    expect(g.current).toMatchObject({ phase: 'revealed', stolenBy: 1 });
+    expect(g.current!.passed).toEqual({ 2: true });
+
+    hitsterEngine.undo(g);
+    expect(g.current!.phase).toBe('veto');
+    expect(g.current!.passed).toBeUndefined();
+    expect(H.pendingVeto(g)).toEqual([2]);
+    expect(H.closeVeto(round())).toMatch(/keine Einspruchsrunde/);
   });
 
   it('bewertet beim Jahr-Korrigieren auch den Einspruch neu', () => {
-    const g = round();
-    H.place(g, 0);
+    const g = confirmed(0);
     H.veto(g, 1, 1);
-    H.reveal(g); // 2010: Ben bekommt sie
+    H.pass(g, 2); // 2010: Ben bekommt sie
     expect(g.current!.stolenBy).toBe(1);
 
-    H.fixYear(g, 'new', 1990); // eigentlich vor der 2000: Anna lag richtig
+    H.fixYear(g, 'new', 1990); // eigentlich vor der 2000: Anna lag mit Platz 0 richtig
     expect(g.current).toMatchObject({ ok: true });
     expect(g.current!.stolenBy).toBeUndefined();
     expect(g.players[1]!.line.map(c => c.id)).not.toContain('new');
     expect(g.players[0]!.line.map(c => c.id)).toEqual(['new', 'first']);
 
-    H.fixYear(g, 'new', 1950); // vor der 2000 ist weiter richtig
-    expect(g.current!.ok).toBe(true);
     H.fixYear(g, 'new', 2020); // jetzt wieder falsch, Ben liegt richtig
     expect(g.current!.stolenBy).toBe(1);
     expect(g.players[1]!.line.map(c => c.id)).toContain('new');
   });
 
   it('bleibt beim Bereinigen für den Live-Tisch unverändert', () => {
-    const g = round();
-    H.place(g, 0);
-    H.veto(g, 1, 1);
+    const g = confirmed(0);
     const same = () => expect(sanitizeGame(JSON.parse(JSON.stringify(g)), engineOf)).toEqual({ ...JSON.parse(JSON.stringify(g)), undo: [], del: false, legacy: false });
-    same(); // mit Einspruch
-    H.reveal(g);
-    same(); // Karte gestohlen
+    same(); // Einspruchsrunde, noch keine Entscheidung
+    H.veto(g, 1, 1);
+    same(); // ein Einspruch
+    H.pass(g, 2);
+    same(); // aufgelöst, Karte gestohlen
     H.rewardGuess(g);
     same(); // Token vergeben
   });
 
-  it('entfernt unmögliche Einsprüche aus fremden Daten', () => {
-    const g = round();
-    H.place(g, 0);
+  it('entfernt unmögliche Einsprüche und Verzichte aus fremden Daten', () => {
+    const g = confirmed(0);
     const raw = JSON.parse(JSON.stringify(g));
-    raw.current.vetoes = [
-      { pi: 0, slot: 1 }, // der Spieler am Zug
-      { pi: 1, slot: 0 }, // der gewählte Platz
-      { pi: 1, slot: 1 }, // gültig
-      { pi: 1, slot: 1 }, // doppelt
-      { pi: 2, slot: 1 }, // Platz schon vergeben
-      { pi: 99, slot: 99 }, // außerhalb
-      'müll',
-    ];
+    raw.current.vetoes = { 0: 1, 1: 0, 2: 1, 99: 3, x: 1 }; // 0 = Spieler am Zug, 1 = gewählter Platz, 2 gültig, Rest außerhalb
+    raw.current.passed = { 0: true, 2: true, 1: true, 99: true };
     const clean = sanitizeGame(raw, engineOf) as H.HitsterGame;
-    expect(clean.current!.vetoes).toEqual([{ pi: 1, slot: 1 }]);
+    expect(clean.current!.vetoes).toEqual({ 2: 1 });
+    expect(clean.current!.passed).toEqual({ 1: true }); // 0 ist der Spieler am Zug, 2 hat Einspruch gelegt
+  });
+
+  it('versteht Einsprüche aus der Fassung mit Liste und stellt eine laufende Runde wieder her', () => {
+    const g = confirmed(0);
+    const raw = JSON.parse(JSON.stringify(g));
+    raw.current.phase = 'placed'; // früher liefen Einsprüche noch im Zustand „gelegt“
+    raw.current.vetoes = [{ pi: 1, slot: 1 }];
+    const clean = sanitizeGame(raw, engineOf) as H.HitsterGame;
+    expect(clean.current).toMatchObject({ phase: 'veto', vetoes: { 1: 1 } });
   });
 });

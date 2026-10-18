@@ -37,9 +37,11 @@
 @media (prefers-reduced-motion:reduce){.htc.new{animation:none}}
 
 /* --- Der Zeitstrahl: Karten nebeneinander, waagerecht scrollbar --- */
-.ht-axis{display:flex;justify-content:space-between;margin:16px 4px 0;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-.ht-track{--ht-cs:clamp(124px,36vw,152px);overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding:10px 4px 18px;scrollbar-width:thin;-webkit-mask-image:linear-gradient(to right,transparent,#000 14px,#000 calc(100% - 14px),transparent);mask-image:linear-gradient(to right,transparent,#000 14px,#000 calc(100% - 14px),transparent)}
-.ht-rail{list-style:none;margin:0 auto;padding:0 10px;display:flex;align-items:center;gap:8px;width:max-content}
+.ht-axis{display:flex;justify-content:space-between;margin:16px auto 0;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+/* Volle Bildschirmbreite; die erste Karte beginnt bündig mit der Textspalte (560 px), gewischt wird über den ganzen Bildschirm */
+.ht-full{width:100%}
+.ht-track{--ht-cs:clamp(124px,36vw,152px);--ht-pad:max(16px,calc((100% - 560px)/2 + 16px));overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scroll-padding-inline:var(--ht-pad);padding:10px var(--ht-pad) 18px;scrollbar-width:thin;-webkit-mask-image:linear-gradient(to right,transparent,#000 14px,#000 calc(100% - 14px),transparent);mask-image:linear-gradient(to right,transparent,#000 14px,#000 calc(100% - 14px),transparent)}
+.ht-rail{list-style:none;margin:0 auto;padding:0;display:flex;align-items:center;gap:8px;width:max-content}
 .ht-rail>li{flex:none;scroll-snap-align:center}
 .ht-slot{display:grid;place-items:center;width:40px;height:var(--ht-cs);padding:0;border:2px dashed var(--line-strong);border-radius:var(--wob-s);background:transparent;color:var(--muted);font-family:var(--f-num);font-size:30px;line-height:1}
 .ht-slot:disabled{opacity:.4}
@@ -60,23 +62,33 @@
 .ht-vh span{font-size:14px;color:var(--muted)}
 .ht-veto p{margin:0;font-size:16px;line-height:1.3;color:var(--ink-2)}
 .ht-veto p b{font-weight:400;color:var(--ink)}
-.ht-vchips{display:flex;flex-wrap:wrap;gap:8px}
-.ht-vchips .chip{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 14px}
-.ht-vchips .chip:disabled{opacity:.5;box-shadow:none}
-.ht-vchips .dot{width:12px;height:12px;border-radius:50%;background:var(--pc);flex:none}
-.ht-vchips small{font-family:var(--f-body);font-size:13px;color:var(--muted)}
+.ht-vrows{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ht-vrow{display:flex;align-items:center;gap:10px;min-height:46px;padding:4px 10px;border:2px solid var(--edge);border-radius:var(--wob-s);background:var(--sheet);transition:background-color .3s,opacity .3s,transform .2s}
+.ht-vrow b{font-weight:400;font-size:18px;flex:1;min-width:0}
+.ht-vrow .dot{width:12px;height:12px;border-radius:50%;background:var(--pc);flex:none}
+.ht-vrow.done{background:var(--paper);opacity:.8}
+.ht-vbtns{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.ht-vstat{font-size:15px;color:var(--muted);white-space:nowrap}
+.ht-vstat.hit{color:var(--pen);font-weight:700}
+.ht-vstat.wait{animation:ht-blink 1.4s ease-in-out infinite}
 
-/* --- Spielstand mit Mini-Zeitstrahlen --- */
-.ht-stands{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:8px}
-.ht-stand{display:grid;gap:8px;padding:8px 12px;border:2px solid var(--edge);border-radius:var(--wob-s);background:var(--sheet)}
-.ht-stand.turn{background:var(--gold-soft);box-shadow:3px 3px 0 var(--pc)}
+/* --- Spielstand: ein Band je Spieler, der Mini-Zeitstrahl läuft über die volle Breite und steht in der Mitte --- */
+.ht-vetowrap{margin-top:6px}
+.ht-bands{margin-top:18px}
+.ht-bands.pad{padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}
+.ht-band{padding:10px 0 12px;border-top:2px dashed var(--line-strong)}
+.ht-band:last-child{border-bottom:2px dashed var(--line-strong)}
+.ht-band.turn{background:var(--gold-soft);border-top-color:var(--pc)}
 .ht-sh{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px}
 .ht-sn b{font-weight:400;font-size:19px}
 .ht-sn small{display:block;font-size:14px;color:var(--ink-2)}
 .ht-n{font-family:var(--f-num);font-size:26px;font-weight:700;color:var(--pen);line-height:1;white-space:nowrap}
 .ht-n small{display:inline;font-family:var(--f-body);font-size:14px;font-weight:400;color:var(--muted)}
 .ht-tok{display:inline-block;width:11px;height:11px;margin-right:3px;border-radius:50%;border:2px solid var(--edge);background:var(--gold-soft)}
-.htm{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 6px;scroll-snap-type:x proximity;scrollbar-width:thin}
+.htm{display:flex;gap:6px;overflow-x:auto;padding:8px 16px 6px;scroll-snap-type:x proximity;scroll-padding-inline:16px;scrollbar-width:thin}
+/* Auto-Ränder zentrieren die Reihe, solange sie passt; sind es mehr Karten, wird normal gescrollt und nichts links abgeschnitten */
+.htm>:first-child{margin-left:auto}
+.htm>:last-child{margin-right:auto}
 .htm-empty{font-size:14px;color:var(--muted);padding:6px 0}
 
 /* --- Musiksteuerung: Schallplatte und Tasten --- */
@@ -136,3 +148,46 @@
 .ht-badge.mine{background:var(--good-soft);color:var(--ink)}
 .ht-yin{width:84px;text-align:center}
 .ht-list{max-height:52vh;overflow:auto;margin:0 -4px;padding:0 4px}
+
+/* ===== Kleine Animationen bei Ereignissen und Eingaben ===== */
+/* Neue Karte oder neuer Spieler: die Karte oben fährt herein, die Schallplatte setzt auf */
+.ht-now{animation:ht-rise .45s cubic-bezier(.2,.9,.3,1.15) both}
+.htp-disc{animation:ht-drop-disc .55s cubic-bezier(.3,1.4,.5,1) both}
+.htp.playing .htp-disc{animation:ht-drop-disc .55s cubic-bezier(.3,1.4,.5,1) both,htp-spin 3.4s linear .55s infinite}
+@keyframes ht-rise{from{opacity:0;transform:translateY(22px) rotate(-1.4deg) scale(.96)}}
+@keyframes ht-drop-disc{from{opacity:0;transform:translateY(-26px) scale(1.25)}60%{opacity:1}}
+/* Auflösung: die Karte dreht sich auf, richtig = Aufhüpfen und Leuchten, falsch = Wackeln */
+.ht-result{perspective:800px}
+.ht-result .htc{animation:ht-flip .6s cubic-bezier(.2,.8,.3,1) both;backface-visibility:hidden}
+.ht-result .htc.miss{animation:ht-flip .6s cubic-bezier(.2,.8,.3,1) both,ht-shake .5s .55s}
+.ht-verdict{animation:ht-pop-text .5s .35s cubic-bezier(.3,1.5,.5,1) both}
+@keyframes ht-flip{from{opacity:0;transform:rotateY(-95deg) scale(.88)}}
+@keyframes ht-pop-text{from{opacity:0;transform:scale(.7) translateY(6px)}}
+@keyframes ht-shake{0%,100%{transform:none}20%{transform:translateX(-7px) rotate(-2deg)}40%{transform:translateX(6px) rotate(1.6deg)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+.htc.new{animation:ht-pop .55s cubic-bezier(.3,1.5,.5,1),ht-glow 1.4s .2s ease-out}
+@keyframes ht-glow{0%{box-shadow:0 0 0 3px var(--good),0 0 0 3px rgba(47,125,85,.55)}100%{box-shadow:0 0 0 3px var(--good),0 0 0 16px rgba(47,125,85,0),2px 3px 0 var(--shadow-c)}}
+/* Platz wählen und Einspruch: die verdeckte Karte wird aufgestempelt */
+.ht-slot.on{animation:ht-stamp .32s cubic-bezier(.3,1.6,.5,1)}
+.ht-slot.on.veto{animation:ht-stamp .36s cubic-bezier(.3,1.6,.5,1),ht-wiggle .5s .3s}
+@keyframes ht-stamp{from{opacity:.3;transform:scale(1.3) rotate(-3deg)}}
+@keyframes ht-wiggle{25%{transform:rotate(-2.5deg)}75%{transform:rotate(2.5deg)}}
+.ht-slot{transition:background-color .2s,border-color .2s,transform .15s}
+/* Die Einspruchsrunde klappt auf, wartende Spieler blinken */
+.ht-veto{animation:ht-unfold .35s ease-out both;transform-origin:top}
+.ht-vrow.done{animation:ht-settle .3s ease-out}
+@keyframes ht-unfold{from{opacity:0;transform:scaleY(.82) translateY(-10px)}}
+@keyframes ht-settle{from{background:var(--gold-soft);transform:scale(1.03)}}
+@keyframes ht-blink{50%{opacity:.35}}
+/* Token: neue Token poppen auf */
+.ht-tok{animation:ht-pop .4s cubic-bezier(.3,1.7,.5,1)}
+/* Wechsel des Spielers: das Band wird sanft hervorgehoben */
+.ht-band{transition:background-color .4s,border-color .4s}
+/* Tasten geben beim Drücken nach */
+.ht-tools .btn,.ht-res .btn,.ht-vbtns .btn,.htp-b{transition:transform .12s,box-shadow .12s}
+.ht-tools .btn:active,.ht-res .btn:active,.ht-vbtns .btn:active{transform:translateY(2px) scale(.97)}
+.htp-b:active{transform:translateY(2px) scale(.92)}
+.ht-slot:not(:disabled):active{transform:scale(.94)}
+@media (prefers-reduced-motion:reduce){
+  .ht-now,.htp-disc,.ht-result .htc,.ht-result .htc.miss,.ht-verdict,.htc.new,.ht-slot.on,.ht-slot.on.veto,.ht-veto,.ht-vrow.done,.ht-vstat.wait,.ht-tok{animation:none!important}
+  .ht-vrow,.ht-slot,.ht-band,.ht-tools .btn,.ht-res .btn,.ht-vbtns .btn,.htp-b{transition:none!important}
+}
