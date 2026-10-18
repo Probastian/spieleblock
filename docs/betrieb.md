@@ -56,12 +56,47 @@ docker compose start
 
 ## Updates
 
+### Release erstellen
+
+Auf GitHub unter **Actions → Release → Run workflow**. Optional einen Commit-Hash angeben (leer = neuester Commit des Standard-Branches) und wählen, ob Patch-, Minor- oder Major-Version hochgezählt wird. Der Workflow führt `npm run check` aus und legt dann an:
+
+* das GitHub-Release `vX.Y.Z` mit automatisch erzeugten Änderungsnotizen,
+* daran das Paket `spieleblock-vX.Y.Z.tar.gz` (`server.mjs` und `public/`) für die Installation ohne Docker,
+* das Docker-Image `ghcr.io/probastian/spieleblock` mit den Tags `X.Y.Z` und `latest` (amd64 und arm64).
+
+Das erste Release bekommt die Version aus der `package.json`. Das Docker-Image ist nach dem ersten Release zunächst privat: In den Paket-Einstellungen auf GitHub auf *Public* stellen, sonst muss der Server sich bei `ghcr.io` anmelden.
+
+### Automatisch auf dem Server
+
+Der Server prüft stündlich, ob es ein neues Release gibt, und installiert es. Dafür dient `deploy/update.sh` mit einem systemd-Timer; er läuft auf dem Docker-Host bzw. im LXC.
+
 ```bash
-git pull
-docker compose up -d --build         # Docker
+cp deploy/update.sh /usr/local/sbin/spieleblock-update && chmod +x /usr/local/sbin/spieleblock-update
+cp deploy/spieleblock-update.service deploy/spieleblock-update.timer /etc/systemd/system/
 ```
 
-Bei systemd: neu bauen (`npm ci && npm run build`), `packages/server/dist/server.mjs` und `public/` nach `/opt/spieleblock` kopieren, `systemctl restart spieleblock`.
+* **Ohne Docker:** Nichts weiter einstellen (`MODE=systemd` ist voreingestellt). Das Skript lädt das Paket des neuesten Releases nach `/opt/spieleblock` und startet den Dienst neu. Die installierte Version steht in `/opt/spieleblock/VERSION`. Gebraucht werden `curl` und das vorhandene Node.
+* **Mit Docker:** In `/etc/systemd/system/spieleblock-update.service` die Zeile `MODE=systemd` durch `MODE=docker` ersetzen und `COMPOSE_DIR` auf den Ordner mit der `docker-compose.yml` setzen. Das Skript zieht das Image `latest` und erstellt den Container nur neu, wenn es sich geändert hat.
+
+Dann den Timer einschalten und einmal von Hand prüfen:
+
+```bash
+systemctl daemon-reload && systemctl enable --now spieleblock-update.timer
+systemctl start spieleblock-update.service && journalctl -u spieleblock-update -n 20
+systemctl list-timers spieleblock-update
+```
+
+Der Dienst startet beim Update kurz neu (wenige Sekunden); offene Browser verbinden sich selbst wieder.
+
+### Von Hand
+
+```bash
+git pull
+docker compose pull && docker compose up -d      # Docker, neuestes Release-Image
+docker compose up -d --build                     # Docker, selbst bauen
+```
+
+Bei systemd: `spieleblock-update` aufrufen (siehe oben) oder selbst bauen (`npm ci && npm run build`), `packages/server/dist/server.mjs` und `public/` nach `/opt/spieleblock` kopieren, `systemctl restart spieleblock`.
 
 Die Daten bleiben. Geöffnete Browser laden die neue Version beim nächsten Öffnen; ist die Seite danach merkwürdig, einmal hart neu laden (Strg/Cmd+Shift+R). Das Datenformat ist über den Umbau auf Angular hinweg unverändert, vorhandene Daten laufen weiter.
 

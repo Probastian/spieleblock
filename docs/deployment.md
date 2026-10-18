@@ -17,10 +17,13 @@ Davor sollte ein Reverse Proxy mit **HTTPS** stehen. Das Spielen geht auch ohne,
 
 ```bash
 git clone https://github.com/Probastian/spieleblock && cd spieleblock
-docker compose up -d --build
+docker compose up -d            # zieht das fertige Image des neuesten Releases
+docker compose up -d --build    # oder: selbst bauen (z. B. solange es noch kein Release gibt)
 ```
 
-Der erste Build lädt die Abhängigkeiten und baut Web-App und Server (einige Minuten). Das fertige Image enthält nur `server.mjs` und die Web-App, keine Entwicklungswerkzeuge.
+Wie sich der Server danach von selbst aktualisiert, steht in [betrieb.md](betrieb.md#updates).
+
+Beim Selbstbauen lädt der erste Build die Abhängigkeiten und baut Web-App und Server (einige Minuten). Das fertige Image enthält nur `server.mjs` und die Web-App, keine Entwicklungswerkzeuge.
 
 Prüfen:
 
@@ -52,7 +55,7 @@ git clone https://github.com/Probastian/spieleblock && cd spieleblock
 npm ci && npm run build
 ```
 
-Ergebnis ist der Ordner `packages/server/dist` mit `server.mjs` und `public/`. Nur dieser Ordner muss auf den Server.
+Ergebnis ist der Ordner `packages/server/dist` mit `server.mjs` und `public/`. Nur dieser Ordner muss auf den Server. Statt selbst zu bauen, geht auch das Paket `spieleblock-vX.Y.Z.tar.gz` vom neuesten [GitHub-Release](https://github.com/Probastian/spieleblock/releases); es enthält genau diese beiden Einträge.
 
 **2. Im LXC einrichten:**
 

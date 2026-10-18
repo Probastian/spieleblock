@@ -1,0 +1,99 @@
+name: Release
+# Manuell starten (Actions → Release → Run workflow). Legt zu einem Commit ein GitHub-Release an,
+# hängt das Paket für die Installation ohne Docker an und veröffentlicht das Docker-Image.
+# Die Server aktualisieren sich danach selbst (siehe docs/betrieb.md, Abschnitt "Updates").
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Commit-Hash für das Release (leer = neuester Commit des Standard-Branches)
+        required: false
+        type: string
+      bump:
+        description: Versionssprung gegenüber dem letzten Release
+        required: false
+        default: patch
+        type: choice
+        options: [patch, minor, major]
+
+concurrency: release
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Commit und Version bestimmen
+        id: meta
+        env:
+          COMMIT: ${{ inputs.commit }}
+          BUMP: ${{ inputs.bump }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse --verify --quiet "${COMMIT:-origin/$DEFAULT_BRANCH}^{commit}") \
+            || { echo "::error::Commit '${COMMIT}' nicht gefunden"; exit 1; }
+          git checkout --detach "$sha"
+
+          last=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+          if [ -z "$last" ]; then
+            ver=$(jq -r .version package.json)   # erstes Release: Version aus package.json
+          else
+            IFS=. read -r major minor patch <<< "${last#v}"
+            case "$BUMP" in
+              major) ver="$((major + 1)).0.0" ;;
+              minor) ver="$major.$((minor + 1)).0" ;;
+              *)     ver="$major.$minor.$((patch + 1))" ;;
+            esac
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "Release v$ver von $sha (vorher: ${last:-keins})"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+
+      - name: Paket für die Installation ohne Docker
+        run: tar -czf "spieleblock-v${{ steps.meta.outputs.version }}.tar.gz" -C packages/server/dist server.mjs public
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker-Image veröffentlichen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
+            ${{ steps.meta.outputs.image }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.meta.outputs.sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+
+      - name: GitHub-Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          SHA: ${{ steps.meta.outputs.sha }}
+        run: |
+          gh release create "v$VERSION" "spieleblock-v$VERSION.tar.gz" \
+            --target "$SHA" --title "v$VERSION" --generate-notes

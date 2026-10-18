@@ -1,7 +1,8 @@
 services:
   spieleblock:
+    # Fertiges Image aus dem neuesten GitHub-Release. Selbst bauen: `docker compose up -d --build`.
+    image: ghcr.io/probastian/spieleblock:latest
     build: .
-    image: spieleblock:latest
     container_name: spieleblock
     restart: unless-stopped
     environment:

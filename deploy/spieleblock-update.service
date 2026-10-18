@@ -1,0 +1,15 @@
+# Prüft auf ein neues GitHub-Release und installiert es. Wird vom Timer gestartet.
+# Ablegen unter /etc/systemd/system/, das Skript unter /usr/local/sbin/spieleblock-update (siehe docs/betrieb.md).
+[Unit]
+Description=Spieleblock auf neues Release prüfen
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Ohne Docker (Standard):
+Environment=MODE=systemd
+# Mit Docker stattdessen:
+# Environment=MODE=docker
+# Environment=COMPOSE_DIR=/pfad/zu/spieleblock
+ExecStart=/usr/local/sbin/spieleblock-update

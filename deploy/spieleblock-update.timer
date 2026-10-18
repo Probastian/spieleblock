@@ -1,0 +1,10 @@
+[Unit]
+Description=Spieleblock stündlich auf neues Release prüfen
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
