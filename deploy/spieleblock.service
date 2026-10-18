@@ -14,6 +14,8 @@ Environment=DATA_DIR=/var/lib/spieleblock
 # Environment=ACCESS_KEY=dein-geheimer-zugangscode
 # Nur für Hitster (docs/betrieb.md):
 # Environment=SPOTIFY_CLIENT_ID=deine-spotify-client-id
+# Erlaubt den versteckten Knopf „Jetzt nach Update suchen“; braucht spieleblock-update.path (docs/betrieb.md):
+# Environment=UPDATE_FROM_UI=1
 ExecStart=/usr/bin/node server.mjs
 Restart=always
 RestartSec=3

@@ -9,6 +9,10 @@ import { GamesTab } from './games.tab';
 import { HistoryTab } from './history.tab';
 import { PlayersTab } from './players.tab';
 import { StorageSheet } from './storage.sheet';
+import { UpdateSheet } from './update.sheet';
+
+const VERSION_TAPS = 5;
+const VERSION_TAP_WINDOW_MS = 2500;
 
 export type HubTab = 'spiele' | 'spieler' | 'verlauf';
 
@@ -34,7 +38,7 @@ export type HubTab = 'spiele' | 'spieler' | 'verlauf';
         @case ('verlauf') { <sb-history-tab /> }
       }
       @if (info.version(); as v) {
-        <footer class="hub-version">Spieleblock {{ v }}</footer>
+        <footer class="hub-version" (click)="tapVersion()">Spieleblock {{ v }}</footer>
       }
     </main>
     <nav class="tabbar" aria-label="Hauptmenü">
@@ -55,6 +59,17 @@ export class HubPage {
   protected readonly sheets = inject(SheetService);
   protected readonly storageSheet = StorageSheet;
   protected readonly today = formatToday();
+
+  /** Verstecktes Wartungsmenü: fünfmal schnell auf die Version tippen. */
+  private taps: number[] = [];
+  protected tapVersion(): void {
+    const now = Date.now();
+    this.taps = [...this.taps.filter(t => now - t < VERSION_TAP_WINDOW_MS), now];
+    if (this.taps.length < VERSION_TAPS) return;
+    this.taps = [];
+    this.sheets.open(UpdateSheet);
+  }
+
   constructor() {
     void this.info.load();
   }

@@ -1,0 +1,13 @@
+# Startet die Update-Prüfung sofort, wenn jemand in der Oberfläche „Jetzt nach Update suchen“ antippt.
+# Der Server darf nur diese Datei anlegen (UPDATE_FROM_UI=1); das Update selbst läuft als root über spieleblock-update.service.
+# Ablegen unter /etc/systemd/system/, dann:  systemctl enable --now spieleblock-update.path
+# Der Pfad ist DATA_DIR/update-request; bei einem anderen Datenordner als /var/lib/spieleblock hier anpassen.
+[Unit]
+Description=Spieleblock: Update-Prüfung aus der Oberfläche
+
+[Path]
+PathExists=/var/lib/spieleblock/update-request
+Unit=spieleblock-update.service
+
+[Install]
+WantedBy=multi-user.target

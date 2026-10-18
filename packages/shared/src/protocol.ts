@@ -14,6 +14,7 @@ export const ENDPOINTS = {
   col: '/api/col',
   stream: '/api/stream',
   watch: '/api/watch',
+  update: '/api/update',
 } as const;
 
 /** Fehlercodes in `{ "error": "<code>" }`. Die Namen lehnen sich an gRPC an. */
@@ -44,6 +45,26 @@ export interface InfoResponse {
   version: string;
   /** Client-ID der Spotify-App für Hitster (öffentlich, kein Geheimnis); leer = nicht eingerichtet. */
   spotifyClientId: string;
+}
+
+/** Ergebnis der letzten Update-Prüfung auf dem Server (geschrieben von deploy/update.sh). */
+export interface UpdateStatus {
+  /** Zeitpunkt der Prüfung (ms, Uhr des Servers). */
+  checkedAt: number;
+  /** `current`: schon aktuell, `updated`: neue Version installiert, `failed`: Prüfung oder Installation gescheitert. */
+  state: 'current' | 'updated' | 'failed';
+  /** Installierte Version nach der Prüfung. */
+  current: string;
+  /** Neueste Version auf GitHub, leer wenn sie nicht ermittelt werden konnte. */
+  latest: string;
+}
+
+export interface UpdateResponse {
+  /** Ist „Update aus der Oberfläche“ auf diesem Server eingerichtet (`UPDATE_FROM_UI`)? */
+  enabled: boolean;
+  status: UpdateStatus | null;
+  /** Uhr des Servers (ms), damit die App den Zeitpunkt einer Anforderung mit `checkedAt` vergleichen kann. */
+  now: number;
 }
 
 export interface MeResponse {

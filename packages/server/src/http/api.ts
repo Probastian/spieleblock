@@ -18,6 +18,7 @@ import type { Config } from '../config';
 import type { RateLimiter } from '../rate-limit';
 import type { DocumentStore } from '../store/document-store';
 import type { StreamHub } from './stream-hub';
+import { createUpdateControl } from './update';
 import { BodyTooLarge, clientIp, isPlainObject, readBody, sendError, sendJson } from './util';
 
 export interface ApiDeps {
@@ -35,6 +36,7 @@ const WATCH_BODY_MAX = 64 * 1024;
 /** Der Handler für alle Pfade unter /api. */
 export function createApiHandler(deps: ApiDeps) {
   const { config, store, hub, auth, limiter } = deps;
+  const updates = createUpdateControl(config);
 
   const docResponse = (p: string): DocResponse => {
     const data = store.get(p);
@@ -114,6 +116,18 @@ export function createApiHandler(deps: ApiDeps) {
       return hub.connect(cid, req, res);
     }
     if (route === ENDPOINTS.watch && req.method === 'POST') return handleWatch(req, res);
+
+    if (route === ENDPOINTS.update) {
+      if (req.method === 'GET') return sendJson(res, 200, updates.status());
+      if (req.method !== 'POST') return sendError(res, 405, 'method_not_allowed');
+      if (!updates.enabled) return sendError(res, 404, 'not_found');
+      try {
+        if (!updates.request()) return sendError(res, 429, 'rate_limited');
+      } catch {
+        return sendError(res, 500, 'internal');
+      }
+      return sendJson(res, 200, updates.status());
+    }
 
     if (route === ENDPOINTS.doc) return handleDocument(req, res, url, 'doc');
     if (route === ENDPOINTS.col) return handleDocument(req, res, url, 'col');

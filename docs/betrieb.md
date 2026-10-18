@@ -8,6 +8,7 @@ Alle Einstellungen sind Umgebungsvariablen: in `docker-compose.yml` unter `envir
 
 | Variable | Standard | Bedeutung |
 |---|---|---|
+| `UPDATE_FROM_UI` | leer | `1` erlaubt der App, eine Update-Prüfung anzufordern (versteckter Knopf, siehe [Updates](#automatisch-auf-dem-server)). Braucht die Path-Unit aus `deploy/`, nur ohne Docker. |
 | `SPOTIFY_CLIENT_ID` | leer | Client-ID der Spotify-App für Hitster, siehe [Hitster einrichten](#hitster-einrichten-spotify). Ohne sie bleibt Hitster ohne Spotify. |
 | `ACCESS_KEY` | leer | Zugangscode. Wenn gesetzt, fragt die App danach (wird im Browser gemerkt). Die Seite selbst ist öffentlich, die Daten nicht. |
 | `PORT` | `3000` | Port des Servers |
@@ -90,15 +91,15 @@ Das erste Release bekommt die Version aus der `package.json`. Das Docker-Image i
 
 ### Automatisch auf dem Server
 
-Der Server prüft stündlich, ob es ein neues Release gibt, und installiert es. Dafür dient `deploy/update.sh` mit einem systemd-Timer; er läuft auf dem Docker-Host bzw. im LXC.
+Der Server prüft alle 2 Minuten, ob es ein neues Release gibt, und installiert es. Dafür dient `deploy/update.sh` mit einem systemd-Timer; er läuft auf dem Docker-Host bzw. im LXC. Die Prüfung ist leicht: Sie fragt nur die Weiterleitung von `github.com/<repo>/releases/latest` ab, nicht die GitHub-API (die ohne Anmeldung auf 60 Anfragen pro Stunde begrenzt ist). Im Journal steht nur etwas, wenn wirklich aktualisiert wurde.
 
 ```bash
 cp deploy/update.sh /usr/local/sbin/spieleblock-update && chmod +x /usr/local/sbin/spieleblock-update
 cp deploy/spieleblock-update.service deploy/spieleblock-update.timer /etc/systemd/system/
 ```
 
-* **Ohne Docker:** Nichts weiter einstellen (`MODE=systemd` ist voreingestellt). Das Skript lädt das Paket des neuesten Releases nach `/opt/spieleblock` und startet den Dienst neu. Die installierte Version steht in `/opt/spieleblock/VERSION`. Gebraucht werden `curl` und das vorhandene Node.
-* **Mit Docker:** In `/etc/systemd/system/spieleblock-update.service` die Zeile `MODE=systemd` durch `MODE=docker` ersetzen und `COMPOSE_DIR` auf den Ordner mit der `docker-compose.yml` setzen. Das Skript zieht das Image `latest` und erstellt den Container nur neu, wenn es sich geändert hat.
+* **Ohne Docker:** Nichts weiter einstellen (`MODE=systemd` ist voreingestellt). Das Skript lädt das Paket des neuesten Releases nach `/opt/spieleblock` und startet den Dienst neu. Die installierte Version steht in `/opt/spieleblock/VERSION`. Gebraucht wird nur `curl`.
+* **Mit Docker:** In `/etc/systemd/system/spieleblock-update.service` die Zeile `MODE=systemd` durch `MODE=docker` ersetzen und `COMPOSE_DIR` auf den Ordner mit der `docker-compose.yml` setzen. Das Skript zieht das Image `latest` und erstellt den Container nur neu, wenn es sich geändert hat. Bei Docker holt der Timer alle 2 Minuten das Image-Manifest; wer das nicht möchte, ändert in `deploy/spieleblock-update.timer` `OnUnitActiveSec`.
 
 Dann den Timer einschalten und einmal von Hand prüfen:
 
@@ -109,6 +110,16 @@ systemctl list-timers spieleblock-update
 ```
 
 Der Dienst startet beim Update kurz neu (wenige Sekunden); offene Browser verbinden sich selbst wieder.
+
+**Update aus der Oberfläche (nur ohne Docker).** Wer nicht bis zum nächsten Timer-Lauf warten will, tippt im Hauptmenü **fünfmal schnell auf die Versionsnummer** unten. Es öffnet sich ein verstecktes Fenster „Updates“ mit dem Knopf *Jetzt nach Update suchen*; die App zeigt das Ergebnis an und lädt nach einer Installation von selbst neu. Einrichten:
+
+```bash
+cp deploy/spieleblock-update.path /etc/systemd/system/
+systemctl edit spieleblock            # eintragen:  [Service]  und  Environment=UPDATE_FROM_UI=1
+systemctl daemon-reload && systemctl enable --now spieleblock-update.path && systemctl restart spieleblock
+```
+
+So funktioniert das, ohne dem Server Rechte zu geben: Der Server läuft weiter ohne Root und kann nur die Datei `update-request` im Datenordner anlegen. Die Path-Unit `spieleblock-update.path` sieht sie und startet `spieleblock-update.service`, also dasselbe Skript wie der Timer, als root. Das Skript löscht die Datei, prüft, installiert gegebenenfalls und schreibt das Ergebnis nach `update-status.json` (im Datenordner), das der Server der App zeigt. Die App kann weder eine Version noch eine Quelle vorgeben, nur „jetzt prüfen“ anstoßen; Anforderungen werden auf eine alle 10 Sekunden begrenzt, und mit gesetztem `ACCESS_KEY` braucht auch das den Zugangscode. Liegt der Datenordner nicht unter `/var/lib/spieleblock`, den Pfad in `spieleblock-update.path` und `DATA_DIR` in `spieleblock-update.service` anpassen.
 
 ### Von Hand
 
@@ -157,4 +168,7 @@ Die Daten bleiben. Geöffnete Browser laden die neue Version beim nächsten Öff
 | Hitster: „Kein Spotify-Gerät gefunden“ | Auf dem Gerät muss die Spotify-App offen sein und kurz etwas gespielt haben. Dann im Spiel unter Menü, Wiedergabe, „Geräte suchen“. |
 | Hitster: „braucht das Spotify-Konto Premium“ | Spotify erlaubt die Fernsteuerung nur mit Premium. |
 | Hitster: Jahresprüfung bricht ab („MusicBrainz antwortet gerade nicht“) | MusicBrainz ist überlastet. „Weiter prüfen“ später nochmal, bis dahin gilt das Spotify-Jahr. |
+| „Updates“-Fenster: „nicht eingerichtet“ | `UPDATE_FROM_UI=1` fehlt am Server, oder der Dienst wurde danach nicht neu gestartet. |
+| „Updates“-Fenster: „Keine Antwort vom Update-Dienst“ | Die Path-Unit läuft nicht: `systemctl status spieleblock-update.path`. Prüfen, ob `/var/lib/spieleblock/update-request` entsteht und der Pfad in der Unit zum Datenordner passt. |
+| „Updates“-Fenster: „Die Prüfung ist fehlgeschlagen“ | `journalctl -u spieleblock-update -n 30`. Meist ist GitHub nicht erreichbar oder das Release hat kein Paket. |
 | Dienst antwortet mit `429` | Mehr als `RATE_PER_MIN` Anfragen pro Minute von einer IP. Steht ein Proxy davor, muss er `X-Forwarded-For` setzen, sonst zählen alle Nutzer als eine IP. |

@@ -17,6 +17,11 @@ export interface Config {
   log: boolean;
   /** Release-Version, z. B. `v2.0.1`; `dev` ohne Release. */
   version: string;
+  /**
+   * Darf die Oberfläche eine Update-Prüfung anfordern? Der Server legt dann `update-request` im Datenordner an
+   * und liest `update-status.json`; das eigentliche Update macht deploy/update.sh (siehe docs/betrieb.md).
+   */
+  updateFromUi: boolean;
   /** Client-ID der Spotify-App für Hitster. Öffentlich, wird der Web-App mitgeteilt. Leer = Hitster ohne Spotify. */
   spotifyClientId: string;
 }
@@ -57,6 +62,7 @@ export function loadConfig(env: Env, baseDir: string): Config {
     ratePerMin: int('RATE_PER_MIN', 1200),
     log: str('LOG', '1') !== '0',
     version: readVersion(env, baseDir),
+    updateFromUi: /^(1|true|yes)$/i.test(str('UPDATE_FROM_UI', '')),
     spotifyClientId: /^[A-Za-z0-9]{16,64}$/.test(str('SPOTIFY_CLIENT_ID', '')) ? str('SPOTIFY_CLIENT_ID', '') : '',
   };
 }

@@ -1,10 +1,11 @@
 [Unit]
-Description=Spieleblock stündlich auf neues Release prüfen
+Description=Spieleblock alle 2 Minuten auf neues Release prüfen
 
 [Timer]
-OnCalendar=hourly
-RandomizedDelaySec=10min
-Persistent=true
+OnBootSec=1min
+OnUnitActiveSec=2min
+# Ohne das fasst systemd Timer innerhalb einer Minute zusammen
+AccuracySec=5s
 
 [Install]
 WantedBy=timers.target

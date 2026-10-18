@@ -84,6 +84,10 @@ Hitster ist das einzige Spiel mit Außenkontakt. Die Engine (`packages/games/src
 * **Wiedergabe:** pro Gerät schaltbar (`SpotifyPlayer`). Jedes Gerät mit „Auf diesem Gerät abspielen“ startet bei einer neuen Karte den Song auf seinem Connect-Gerät.
 * **Geheimhaltung:** Das Jahr der gezogenen Karte steht im geteilten Dokument. Die Oberfläche zeigt es erst nach dem Auflösen; wer die Entwicklerwerkzeuge öffnet, kann es lesen.
 
+## Update aus der Oberfläche
+
+Der Server läuft ohne Rechte und kann sich nicht selbst aktualisieren. Mit `UPDATE_FROM_UI=1` bietet `/api/update` zwei Dinge an: `GET` liefert den Status der letzten Prüfung, `POST` legt `update-request` im Datenordner an. Alles Weitere erledigt `deploy/update.sh` als root, gestartet von der systemd-Path-Unit, und schreibt `update-status.json`. Die App (`core/api/update.service.ts`) fragt den Status ab, bis er neuer ist als ihre Anforderung, und lädt nach einer Installation neu, sobald `/api/info` die neue Version nennt.
+
 ## Oberfläche
 
 * Routen: `/spiele`, `/spieler`, `/verlauf`, `/neu/:type`, `/spiel/:id`. Seiten werden bei Bedarf geladen.

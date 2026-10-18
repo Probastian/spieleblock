@@ -1,4 +1,5 @@
-# Prüft auf ein neues GitHub-Release und installiert es. Wird vom Timer gestartet.
+# Prüft auf ein neues GitHub-Release und installiert es. Wird vom Timer (alle 2 Minuten) und von
+# spieleblock-update.path (Knopf in der Oberfläche) gestartet.
 # Ablegen unter /etc/systemd/system/, das Skript unter /usr/local/sbin/spieleblock-update (siehe docs/betrieb.md).
 [Unit]
 Description=Spieleblock auf neues Release prüfen
@@ -9,6 +10,8 @@ Wants=network-online.target
 Type=oneshot
 # Ohne Docker (Standard):
 Environment=MODE=systemd
+# Dort liegen update-status.json und update-request (derselbe Ordner wie DATA_DIR des Servers):
+Environment=DATA_DIR=/var/lib/spieleblock
 # Mit Docker stattdessen:
 # Environment=MODE=docker
 # Environment=COMPOSE_DIR=/pfad/zu/spieleblock
