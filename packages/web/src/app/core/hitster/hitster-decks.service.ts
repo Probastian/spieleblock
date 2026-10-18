@@ -93,7 +93,7 @@ export class HitsterDecks {
       seen.add(key);
       if (!known) out.unchecked++;
       if (entry.unsure && entry.src !== 'user') out.unsure++;
-      out.cards.push({ id: t.id, title: t.title.slice(0, 80), artist: artistLine(t.artists), year: entry.y });
+      out.cards.push({ id: t.id, title: t.title.slice(0, 80), artist: artistLine(t.artists), year: entry.y, ...(t.cover ? { cover: t.cover } : {}) });
     }
     return out;
   }

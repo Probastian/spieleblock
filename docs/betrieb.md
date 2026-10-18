@@ -141,7 +141,7 @@ Die Daten bleiben. Geöffnete Browser laden die neue Version beim nächsten Öff
 
 ## Datenschutz und Sicherheit
 
-* **Keine Konten, keine Mailadressen, kein Tracking.** Schriften und alles andere kommen vom eigenen Server. Einzige Ausnahme ist **Hitster**: Der Browser spricht dann direkt mit Spotify (Anmeldung, Playlists, Wiedergabe) und MusicBrainz (Jahre). MusicBrainz erfährt dabei Titel und Interpret der geprüften Songs und die IP-Adresse des Geräts. Der Server des Blocks sieht davon nichts.
+* **Keine Konten, keine Mailadressen, kein Tracking.** Schriften und alles andere kommen vom eigenen Server. Einzige Ausnahme ist **Hitster**: Der Browser spricht dann direkt mit Spotify (Anmeldung, Playlists, Wiedergabe) und MusicBrainz (Jahre). MusicBrainz erfährt dabei Titel und Interpret der geprüften Songs und die IP-Adresse des Geräts. Außerdem lädt der Browser die Albumcover von Spotifys Bilderserver (`i.scdn.co`), die Adresse der Bilder steht im Spiel. Der Server des Blocks sieht davon nichts.
 * **Spotify-Anmeldungen bleiben auf dem Gerät.** Die Zugangsdaten für Spotify liegen nur im Browser des jeweiligen Geräts und werden weder zum Server noch zu anderen Geräten übertragen. „Von Spotify abmelden“ im Spiel löscht sie.
 * **Gespeichert wird:** Spielernamen, Farben, Einstellungen und Spiele, dazu offene Live-Tische. Jeder Nutzer bleibt unter einer zufälligen Gerätekennung; der Server kennt nur einen Hash davon.
 * **Schutz der Nutzerdaten:** Nur wer die Gerätekennung kennt, kann die Spieler und Spiele dieser Kennung lesen oder ändern. Die Kennung ist wie ein Passwort zu behandeln.

@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-export type IconName = 'grid' | 'dots' | 'info' | 'back' | 'close' | 'chevL' | 'chevR' | 'tabGames' | 'tabPeople' | 'tabHist' | 'board' | 'wizard' | 'music';
+export type IconName = 'grid' | 'dots' | 'info' | 'back' | 'close' | 'chevL' | 'chevR' | 'tabGames' | 'tabPeople' | 'tabHist' | 'board' | 'wizard' | 'music' | 'play' | 'pause' | 'replay';
 
-const DEFAULT_SIZE: Record<IconName, number> = { grid: 20, dots: 20, info: 21, back: 22, close: 20, chevL: 22, chevR: 20, tabGames: 24, tabPeople: 24, tabHist: 24, board: 32, wizard: 32, music: 32 };
+const DEFAULT_SIZE: Record<IconName, number> = { grid: 20, dots: 20, info: 21, back: 22, close: 20, chevL: 22, chevR: 20, tabGames: 24, tabPeople: 24, tabHist: 24, board: 32, wizard: 32, music: 32, play: 24, pause: 24, replay: 22 };
 
 /** Symbole des Blocks. Verwendung: `<svg sb-icon name="chevL"></svg>` */
 @Component({
@@ -73,6 +73,17 @@ const DEFAULT_SIZE: Record<IconName, number> = { grid: 20, dots: 20, info: 21, b
         <svg:circle cx="6.5" cy="18" r="2.6" />
         <svg:circle cx="16.5" cy="16" r="2.6" />
         <svg:path d="M9 10.5l10-2" />
+      }
+      @case ('play') {
+        <svg:path d="M8 5.2v13.6a.6.6 0 0 0 .9.5l11-6.8a.6.6 0 0 0 0-1l-11-6.8a.6.6 0 0 0-.9.5z" fill="currentColor" stroke="none" />
+      }
+      @case ('pause') {
+        <svg:rect x="6.5" y="5" width="4" height="14" rx="1.2" fill="currentColor" stroke="none" />
+        <svg:rect x="13.5" y="5" width="4" height="14" rx="1.2" fill="currentColor" stroke="none" />
+      }
+      @case ('replay') {
+        <svg:path d="M4.5 12a7.5 7.5 0 1 0 2.4-5.5" />
+        <svg:path d="M4.2 3.8v4.4h4.4" />
       }
       @case ('wizard') {
         <svg:path d="M12.2 3.2c-.7 3.6-2.6 8.6-5 13.3h10.6c-.6-4.7-2.8-10.6-5.6-13.3z" />

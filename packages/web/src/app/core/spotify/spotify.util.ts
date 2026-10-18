@@ -9,6 +9,8 @@ export interface SpotifyTrack {
   /** Jahr des Albums laut Spotify (kann bei Sammlern und Neuauflagen vom Original abweichen). */
   year: number | null;
   isrc: string | null;
+  /** Bild-ID des Albumcovers (40 Hex-Zeichen der Adresse bei `i.scdn.co`), falls vorhanden. */
+  cover: string | null;
 }
 
 const base64Url = (bytes: Uint8Array): string => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -36,6 +38,15 @@ export function yearOf(date: unknown): number | null {
   return y >= 1900 && y <= 2100 ? y : null;
 }
 
+/** Bild-ID aus der Cover-Liste von Spotify: das kleinste Bild ab etwa 250 Pixeln (scharf genug für die Karte, aber nicht unnötig groß), sonst das größte vorhandene. */
+export function coverIdOf(images: unknown): string | null {
+  const list = (Array.isArray(images) ? images : [])
+    .map((i: any) => ({ w: Number(i?.width) || 0, id: String(i?.url ?? '').split('/').pop() ?? '' }))
+    .filter(i => /^[a-f0-9]{40}$/.test(i.id));
+  const sharp = list.filter(i => i.w >= 250).sort((a, b) => a.w - b.w);
+  return (sharp[0] ?? list.sort((a, b) => b.w - a.w)[0])?.id ?? null;
+}
+
 /**
  * Macht aus einem Eintrag der Playlist einen Track, oder `null` für alles, was nicht spielbar ist:
  * lokale Dateien, Podcast-Folgen, gelöschte oder im Land gesperrte Songs.
@@ -48,7 +59,7 @@ export function trackOf(entry: unknown): SpotifyTrack | null {
   if (typeof t['id'] !== 'string' || !/^[A-Za-z0-9]{10,30}$/.test(t['id']) || typeof t['name'] !== 'string') return null;
   const artists = (Array.isArray(t['artists']) ? t['artists'] : []).map((a: any) => String(a?.name ?? '')).filter(Boolean);
   if (!artists.length) return null;
-  return { id: t['id'], title: t['name'], artists, year: yearOf(t['album']?.['release_date']), isrc: typeof t['external_ids']?.['isrc'] === 'string' ? t['external_ids']['isrc'] : null };
+  return { id: t['id'], title: t['name'], artists, year: yearOf(t['album']?.['release_date']), isrc: typeof t['external_ids']?.['isrc'] === 'string' ? t['external_ids']['isrc'] : null, cover: coverIdOf(t['album']?.['images']) };
 }
 
 /** Anzeige-Interpret für die Karte: alle Namen, gekürzt. */

@@ -105,6 +105,17 @@ export class SpotifyApi {
     await this.request('PUT', `/me/player/play?device_id=${encodeURIComponent(deviceId)}`, { uris: [`spotify:track:${trackId}`] });
   }
 
+  /** Setzt die Wiedergabe auf dem Gerät fort, wo sie angehalten wurde. */
+  async resume(deviceId: string): Promise<void> {
+    await this.request('PUT', `/me/player/play?device_id=${encodeURIComponent(deviceId)}`);
+  }
+
+  /** Was spielt gerade? `null`, wenn auf keinem Gerät etwas läuft oder angehalten ist (Spotify antwortet dann mit 204). */
+  async state(): Promise<{ playing: boolean; trackId: string } | null> {
+    const data = await this.request<{ is_playing?: boolean; item?: { id?: string } | null }>('GET', '/me/player');
+    return data ? { playing: !!data.is_playing, trackId: String(data.item?.id ?? '') } : null;
+  }
+
   async pause(deviceId: string): Promise<void> {
     await this.request('PUT', `/me/player/pause?device_id=${encodeURIComponent(deviceId)}`);
   }

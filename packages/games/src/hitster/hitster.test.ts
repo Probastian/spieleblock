@@ -126,11 +126,22 @@ describe('Hitster: Token', () => {
     expect(H.skip(g)).toMatch(/bevor die Karte gelegt/);
   });
 
-  it('belohnt Titel und Interpret', () => {
+  it('belohnt Titel und Interpret erst nach dem Auflösen und nur einmal je Karte', () => {
     const g = game(fill(10));
+    H.draw(g);
+    expect(H.rewardGuess(g)).toBeNull(); // vor dem Auflösen lässt es sich nicht prüfen
+    H.place(g, 0);
+    expect(H.rewardGuess(g)).toBeNull();
+    H.reveal(g);
     expect(H.rewardGuess(g)).toBe('Anna: +1 Token');
     expect(H.active(g).tokens).toBe(3);
+    expect(H.rewardGuess(g)).toBeNull();
+    expect(H.active(g).tokens).toBe(3);
+
     const none = game(fill(10), { guessReward: 0 });
+    H.draw(none);
+    H.place(none, 0);
+    H.reveal(none);
     expect(H.rewardGuess(none)).toBeNull();
   });
 
@@ -247,12 +258,18 @@ describe('Hitster: Rückgängig', () => {
     expect(H.active(g).tokens).toBe(4);
     expect(g.discard).toHaveLength(0);
 
+    H.place(g, 0);
+    H.reveal(g);
     H.rewardGuess(g);
+    expect(H.active(g).tokens).toBe(5);
+    expect(g.current!.guessed).toBe(true);
     hitsterEngine.undo(g);
     expect(H.active(g).tokens).toBe(4);
-
-    H.endTurn(g); // ohne aufgelöste Karte passiert nichts
-    g.current = null;
+    expect(g.current!.guessed).toBeUndefined();
+    hitsterEngine.undo(g); // Auflösung
+    hitsterEngine.undo(g); // Platz
+    hitsterEngine.undo(g); // Ziehen
+    expect(g.current).toBeNull();
     H.buyCard(g);
     hitsterEngine.undo(g);
     expect(H.active(g).line).toHaveLength(1);
@@ -282,7 +299,7 @@ describe('Hitster: fremde Daten', () => {
     raw.current.card.title = 'x'.repeat(500);
 
     const clean = sanitizeGame(raw, engineOf) as H.HitsterGame;
-    expect(clean.rules).toEqual({ goal: 30, startTokens: 0, skipCost: 0, guessReward: 1, buyCost: 10 });
+    expect(clean.rules).toEqual({ goal: 30, startTokens: 0, skipCost: 0, guessReward: 1, buyCost: 10, vetoCost: 1 });
     expect(clean.deck.every(c => c.year >= H.MIN_YEAR)).toBe(true);
     expect(clean.deck.find(c => c.id === 'ok')).toBeUndefined();
     expect(clean.players[0]!.tokens).toBe(H.MAX_TOKENS);
@@ -396,5 +413,161 @@ describe('Hitster: Live-Tisch', () => {
   it('lässt auch ein Spiel vor dem Start unverändert', () => {
     const g = H.create(duo, { goal: 7, source: { id: 'abc123', name: 'Mix' } });
     expect(roundtrip(g)).toEqual({ ...JSON.parse(JSON.stringify(g)), del: false, legacy: false });
+  });
+});
+
+
+describe('Hitster: Einspruch', () => {
+  /** Anna hat 2000 liegen, Ben 1970 und Cleo 1990. Gezogen wird ein Song von 2010 (gehört hinter die 2000). */
+  function round(options: Partial<H.HitsterOptions> = {}) {
+    const trio = [
+      { pid: 'a', name: 'Anna', color: 0 },
+      { pid: 'b', name: 'Ben', color: 1 },
+      { pid: 'c', name: 'Cleo', color: 2 },
+    ];
+    const g = H.create(trio, options);
+    H.start(g, fill(12), () => 0.999);
+    g.players[0]!.line = [card('first', 2000)];
+    g.deck = [card('new', 2010), ...g.deck];
+    H.draw(g);
+    return g;
+  }
+
+  it('gibt eine falsch gelegte Karte dem, der per Einspruch richtig liegt', () => {
+    const g = round();
+    H.place(g, 0); // falsch: 2010 liegt nicht vor 2000
+    expect(H.veto(g, 1, 1)).toBeNull(); // Ben nennt hinter der 2000
+    expect(g.players[1]!.tokens).toBe(1);
+
+    const r = H.reveal(g)!;
+    expect(r).toMatchObject({ ok: false, by: 1 });
+    expect(r.message).toMatch(/Ben gewinnt die Karte per Einspruch/);
+    expect(g.players[1]!.line.map(c => c.id)).toContain('new');
+    expect(g.players[0]!.line.map(c => c.id)).toEqual(['first']);
+    expect(g.discard).toHaveLength(0);
+    expect(g.current!.stolenBy).toBe(1);
+
+    hitsterEngine.undo(g); // Auflösung
+    expect(g.players[1]!.line.map(c => c.id)).not.toContain('new');
+    expect(g.current!.phase).toBe('placed');
+    expect(g.current!.stolenBy).toBeUndefined();
+    expect(g.players[1]!.tokens).toBe(1);
+    hitsterEngine.undo(g); // Einspruch
+    expect(g.players[1]!.tokens).toBe(2);
+    expect(g.current!.vetoes).toBeUndefined();
+  });
+
+  it('lässt das Token verfallen, wenn der Spieler am Zug richtig lag', () => {
+    const g = round();
+    H.place(g, 1);
+    H.veto(g, 2, 0);
+    const r = H.reveal(g)!;
+    expect(r).toMatchObject({ ok: true, by: null });
+    expect(g.players[0]!.line.map(c => c.id)).toEqual(['first', 'new']);
+    expect(g.players[2]!.tokens).toBe(1);
+    expect(g.players[2]!.line).toHaveLength(1);
+  });
+
+  it('wirft die Karte weg, wenn auch der Einspruch falsch liegt', () => {
+    const g = round();
+    g.players[0]!.line = [card('f1', 1980), card('f2', 2000)];
+    g.current = { card: card('new', 2010), phase: 'listen', slot: null }; // gehört ans Ende (Platz 2)
+    H.place(g, 0); // falsch
+    expect(H.veto(g, 1, 1)).toBeNull(); // Ben legt zwischen 1980 und 2000: auch falsch
+    const r = H.reveal(g)!;
+    expect(r).toMatchObject({ ok: false, by: null });
+    expect(g.discard.map(c => c.id)).toEqual(['new']);
+    expect(g.players[1]!.line).toHaveLength(1);
+    expect(g.players[1]!.tokens).toBe(1); // das Token ist trotzdem weg
+  });
+
+  it('gibt die Karte dem ersten passenden Einspruch, wenn mehrere richtig liegen', () => {
+    const g = round();
+    // 2000 passt zwischen 1990 und 2010 an drei Plätzen (vor, zwischen und hinter den beiden 2000ern)
+    g.players[0]!.line = [card('f1', 1990), card('f2', 2000), card('f3', 2000), card('f4', 2010)];
+    g.current = { card: card('mid', 2000), phase: 'listen', slot: null };
+    H.place(g, 0); // falsch: 2000 liegt nicht vor der 1990
+    H.veto(g, 2, 2); // Cleo zuerst, richtig
+    H.veto(g, 1, 1); // dann Ben, auch richtig
+    expect(H.reveal(g)).toMatchObject({ ok: false, by: 2 });
+    expect(g.players[2]!.line.map(c => c.id)).toContain('mid');
+    expect(g.players[1]!.line.map(c => c.id)).not.toContain('mid');
+  });
+
+  it('prüft die Voraussetzungen', () => {
+    const g = round();
+    expect(H.veto(g, 1, 1)).toMatch(/erst, wenn die Karte gelegt/);
+    H.place(g, 0);
+    expect(H.veto(g, 0, 1)).toMatch(/Spieler am Zug/);
+    expect(H.veto(g, 1, 0)).toMatch(/schon belegt/);
+    expect(H.veto(g, 1, 9)).toMatch(/Ungültiger Platz/);
+    g.players[2]!.tokens = 0;
+    expect(H.veto(g, 2, 1)).toBe('Zu wenige Token');
+    expect(H.veto(g, 1, 1)).toBeNull();
+    expect(H.veto(g, 1, 1)).toMatch(/schon Einspruch/);
+    g.players[2]!.tokens = 2;
+    expect(H.veto(g, 2, 1)).toMatch(/schon belegt/);
+
+    const off = round({ vetoCost: 0 });
+    H.place(off, 0);
+    expect(H.veto(off, 1, 1)).toMatch(/ausgeschaltet/);
+  });
+
+  it('sperrt den Platz, sobald ein Einspruch vorliegt, und kostet nach den Regeln', () => {
+    const g = round({ vetoCost: 2 });
+    H.place(g, 0);
+    expect(H.veto(g, 1, 1)).toBeNull();
+    expect(g.players[1]!.tokens).toBe(0);
+    expect(H.place(g, 1)).toBe(false);
+    expect(g.current!.slot).toBe(0);
+  });
+
+  it('bewertet beim Jahr-Korrigieren auch den Einspruch neu', () => {
+    const g = round();
+    H.place(g, 0);
+    H.veto(g, 1, 1);
+    H.reveal(g); // 2010: Ben bekommt sie
+    expect(g.current!.stolenBy).toBe(1);
+
+    H.fixYear(g, 'new', 1990); // eigentlich vor der 2000: Anna lag richtig
+    expect(g.current).toMatchObject({ ok: true });
+    expect(g.current!.stolenBy).toBeUndefined();
+    expect(g.players[1]!.line.map(c => c.id)).not.toContain('new');
+    expect(g.players[0]!.line.map(c => c.id)).toEqual(['new', 'first']);
+
+    H.fixYear(g, 'new', 1950); // vor der 2000 ist weiter richtig
+    expect(g.current!.ok).toBe(true);
+    H.fixYear(g, 'new', 2020); // jetzt wieder falsch, Ben liegt richtig
+    expect(g.current!.stolenBy).toBe(1);
+    expect(g.players[1]!.line.map(c => c.id)).toContain('new');
+  });
+
+  it('bleibt beim Bereinigen für den Live-Tisch unverändert', () => {
+    const g = round();
+    H.place(g, 0);
+    H.veto(g, 1, 1);
+    const same = () => expect(sanitizeGame(JSON.parse(JSON.stringify(g)), engineOf)).toEqual({ ...JSON.parse(JSON.stringify(g)), undo: [], del: false, legacy: false });
+    same(); // mit Einspruch
+    H.reveal(g);
+    same(); // Karte gestohlen
+    H.rewardGuess(g);
+    same(); // Token vergeben
+  });
+
+  it('entfernt unmögliche Einsprüche aus fremden Daten', () => {
+    const g = round();
+    H.place(g, 0);
+    const raw = JSON.parse(JSON.stringify(g));
+    raw.current.vetoes = [
+      { pi: 0, slot: 1 }, // der Spieler am Zug
+      { pi: 1, slot: 0 }, // der gewählte Platz
+      { pi: 1, slot: 1 }, // gültig
+      { pi: 1, slot: 1 }, // doppelt
+      { pi: 2, slot: 1 }, // Platz schon vergeben
+      { pi: 99, slot: 99 }, // außerhalb
+      'müll',
+    ];
+    const clean = sanitizeGame(raw, engineOf) as H.HitsterGame;
+    expect(clean.current!.vetoes).toEqual([{ pi: 1, slot: 1 }]);
   });
 });

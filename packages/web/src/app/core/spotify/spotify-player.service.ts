@@ -27,6 +27,8 @@ export class SpotifyPlayer {
   readonly error = signal('');
   readonly devices = signal<SpotifyDevice[]>([]);
   readonly busy = signal(false);
+  /** Läuft gerade etwas auf dem gewählten Gerät? Wird beim Starten und Pausieren gesetzt und beim Beobachten (`watch`) abgeglichen. */
+  readonly playing = signal(false);
   private lastTrack = '';
 
   readonly on = computed(() => this.state().on && this.auth.loggedIn());
@@ -64,6 +66,7 @@ export class SpotifyPlayer {
       const id = await this.ensureDevice();
       if (!id) return;
       await this.api.play(id, trackId);
+      this.playing.set(true);
       this.error.set('');
     } catch (e) {
       this.lastTrack = '';
@@ -78,14 +81,51 @@ export class SpotifyPlayer {
     if (!this.on() || !id) return;
     try {
       await this.api.pause(id);
+      this.playing.set(false);
     } catch (e) {
       this.fail(e);
     }
   }
 
+  /** Pause und Weiter in einem Knopf. Lässt sich die Wiedergabe nicht fortsetzen, startet der Song von vorn. */
+  async toggle(trackId: string): Promise<void> {
+    if (this.playing()) return this.pause();
+    const id = this.state().deviceId;
+    if (id) {
+      try {
+        await this.api.resume(id);
+        this.playing.set(true);
+        this.error.set('');
+        return;
+      } catch {
+        /* nichts zum Fortsetzen: neu starten */
+      }
+    }
+    await this.play(trackId, true);
+  }
+
+  /**
+   * Gleicht alle paar Sekunden ab, ob der Song wirklich noch läuft (er endet von selbst, oder jemand pausiert in der
+   * Spotify-App). Gibt die Funktion zum Beenden zurück.
+   */
+  watch(trackId: string, everyMs = 5000): () => void {
+    const tick = async () => {
+      if (!this.on() || document.hidden) return;
+      try {
+        const s = await this.api.state();
+        this.playing.set(!!s && s.playing && s.trackId === trackId);
+      } catch {
+        /* der Abgleich ist nur Zugabe: Fehler zeigt `play` an */
+      }
+    };
+    const timer = setInterval(() => void tick(), everyMs);
+    return () => clearInterval(timer);
+  }
+
   /** Vergisst, welcher Song zuletzt lief (z. B. beim Verlassen des Spiels), damit er beim Zurückkehren wieder startet. */
   reset(): void {
     this.lastTrack = '';
+    this.playing.set(false);
   }
 
   /** Das gewählte Gerät, sonst das aktive oder einzige Gerät aus der Liste. */

@@ -13,6 +13,7 @@ const GOALS = [5, 7, 10, 15, 20];
 const SKIP_COSTS = [0, 1, 2];
 const REWARDS = [0, 1, 2];
 const BUY_COSTS = [0, 2, 3, 4, 5];
+const VETO_COSTS = [0, 1, 2, 3];
 
 /** Einstellungen für ein neues Hitster-Spiel: Spotify, Playlist, Regeln. */
 @Component({
@@ -114,6 +115,14 @@ const BUY_COSTS = [0, 2, 3, 4, 5];
           </div>
         </div>
         <div class="ht-opt">
+          <h3>Einspruch kostet</h3>
+          <div class="chips" style="margin-top: 0">
+            @for (v of vetoCosts; track v) {
+              <button type="button" class="chip" [class.txt]="!v" [attr.aria-pressed]="options().vetoCost === v" (click)="set({ vetoCost: v })">{{ v || 'Aus' }}</button>
+            }
+          </div>
+        </div>
+        <div class="ht-opt">
           <h3>Karte kaufen kostet</h3>
           <div class="chips" style="margin-top: 0">
             @for (v of buyCosts; track v) {
@@ -139,6 +148,7 @@ export class HitsterSetup {
   protected readonly skipCosts = SKIP_COSTS;
   protected readonly rewards = REWARDS;
   protected readonly buyCosts = BUY_COSTS;
+  protected readonly vetoCosts = VETO_COSTS;
   protected readonly inputValue = inputValue;
 
   protected readonly options = computed(() => this.store.options<Options>('hitster'));

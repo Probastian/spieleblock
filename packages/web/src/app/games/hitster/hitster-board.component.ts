@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ViewEncapsulation, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, ViewEncapsulation, computed, effect, inject, signal, untracked } from '@angular/core';
 import { hitster, pluralize } from '@spieleblock/games';
 import { HitsterDecks } from '../../core/hitster/hitster-decks.service';
 import { SpotifyAuth } from '../../core/spotify/spotify-auth.service';
@@ -6,8 +6,11 @@ import { SpotifyPlayer } from '../../core/spotify/spotify-player.service';
 import { SheetService } from '../../core/ui/sheet.service';
 import { GameTopbarComponent } from '../../features/play/game-topbar.component';
 import { PlayContext } from '../../features/play/play-context';
+import { prefersReducedMotion } from '../../shared/dom';
 import { AvatarComponent } from '../../shared/ui/avatar.component';
-import { IconComponent } from '../../shared/ui/icon.component';
+import { HitsterCardComponent } from './hitster-card.component';
+import { HitsterMiniLine } from './hitster-mini-line.component';
+import { HitsterPlayerComponent } from './hitster-player.component';
 import { YearFixSheet } from './year-fix.sheet';
 
 type Row =
@@ -17,13 +20,13 @@ type Row =
 
 type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; total: number } | { kind: 'error'; text: string };
 
-/** Das Blatt für Hitster: Stapel vorbereiten, Karte ziehen, hören, einsortieren, auflösen. */
+/** Das Blatt für Hitster: Stapel vorbereiten, Karte ziehen, hören, einsortieren, Einspruch, auflösen. */
 @Component({
   selector: 'sb-hitster-board',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   styleUrl: './hitster.css',
-  imports: [GameTopbarComponent, AvatarComponent, IconComponent],
+  imports: [GameTopbarComponent, AvatarComponent, HitsterCardComponent, HitsterMiniLine, HitsterPlayerComponent],
   template: `
     @let g = game();
     <sb-game-topbar title="Hitster" [subtitle]="subtitle()" />
@@ -66,103 +69,112 @@ type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; to
         }
 
         @let c = g.current;
-        <section class="ht-now" aria-live="polite">
+        <section class="ht-now" aria-live="polite" [style.--pc]="'var(--p' + active().color + ')'">
+          <div class="ht-k">
+            <span [sbAvatar]="active()"></span>
+            <b>{{ active().name }}</b>
+            <span>{{ !c ? 'ist dran' : c.phase === 'revealed' ? 'aufgelöst' : 'Wann ist dieser Song erschienen?' }}</span>
+          </div>
+
           @if (!c) {
-            <div class="ht-k"><b>{{ active().name }}</b><span>ist dran · {{ active().line.length }} von {{ g.rules.goal }} Karten</span></div>
-            <p class="ht-deal">Zieh eine Karte, hör den Song und sortiere ihn in den Zeitstrahl ein.</p>
+            <p class="ht-deal">Zieh eine Karte, hör den Song und lege ihn im Zeitstrahl an die richtige Stelle.</p>
           } @else if (c.phase !== 'revealed') {
-            <div class="ht-k"><b>{{ active().name }}</b><span>Wann ist dieser Song erschienen?</span></div>
-            <div class="ht-mystery">
-              <span class="ht-disc" [class.spin]="player.on() && !player.busy()"><svg sb-icon name="music" [size]="34"></svg></span>
-              <div class="ht-ctrls">
-                @if (player.on()) {
-                  <button class="btn sm" type="button" (click)="replay()">Nochmal</button>
-                  <button class="btn sm" type="button" (click)="player.pause()">Pause</button>
-                } @else {
-                  <span class="ht-deal">Auf diesem Gerät läuft keine Musik. Sie kommt von einem anderen Gerät.</span>
+            <sb-ht-player [trackId]="c.card.id" />
+          } @else {
+            <div class="ht-result">
+              <sb-ht-card [card]="c.card" [state]="c.ok ? 'new' : 'miss'" />
+              <div class="ht-res">
+                <b class="ht-verdict" [class.ok]="c.ok">{{ verdict() }}</b>
+                @if (canAct()) {
+                  @if (g.rules.guessReward > 0 && !c.guessed) {
+                    <button class="btn" type="button" (click)="guess()">Titel &amp; Interpret richtig <small class="ht-plus">+{{ g.rules.guessReward }}</small></button>
+                  }
+                  <button class="link" type="button" (click)="fixYear()">Jahr stimmt nicht?</button>
+                  @if (winners()) {
+                    <button class="link" type="button" (click)="next()">Trotzdem weiterspielen</button>
+                  }
                 }
               </div>
             </div>
-            @if (player.error(); as e) {
-              <p class="ht-err" role="alert">{{ e }}</p>
-            }
-          } @else {
-            <div class="ht-reveal" [class.ok]="c.ok" [class.no]="!c.ok">
-              <span class="ht-year">{{ c.card.year }}</span>
-              <span class="ht-title">{{ c.card.title }}</span>
-              <span class="ht-artist">{{ c.card.artist }}</span>
-              <span class="ht-verdict">{{ c.ok ? 'Richtig gelegt, die Karte bleibt im Zeitstrahl.' : 'Falsch gelegt, die Karte ist raus.' }}</span>
-            </div>
-            <div class="ht-ctrls">
-              @if (canAct()) {
-                <button class="link" type="button" (click)="fixYear()">Jahr stimmt nicht?</button>
-                @if (winners()) {
-                  <button class="link" type="button" (click)="next()">Trotzdem weiterspielen</button>
-                }
-              }
-            </div>
           }
 
-          @if (canAct() && !finished()) {
+          @if (canAct() && !finished() && (!c || c.phase === 'listen')) {
             <div class="ht-tools">
-              <button class="btn" type="button" [disabled]="!canSkip()" (click)="skip()">Überspringen <small>−{{ g.rules.skipCost }}</small></button>
-              @if (g.rules.guessReward > 0) {
-                <button class="btn" type="button" (click)="guess()">Titel &amp; Interpret richtig <small>+{{ g.rules.guessReward }}</small></button>
+              @if (c) {
+                <button class="btn" type="button" [disabled]="!canSkip()" (click)="skip()">Überspringen <small class="ht-plus">−{{ g.rules.skipCost }}</small></button>
               }
               @if (g.rules.buyCost > 0) {
-                <button class="btn" type="button" [disabled]="!canBuy()" (click)="buy()">Karte kaufen <small>−{{ g.rules.buyCost }}</small></button>
+                <button class="btn" type="button" [disabled]="!canBuy()" (click)="buy()">Karte kaufen <small class="ht-plus">−{{ g.rules.buyCost }}</small></button>
               }
             </div>
           }
         </section>
 
+        <div class="ht-axis" aria-hidden="true"><span>◀ früher</span><span>später ▶</span></div>
+        <div class="ht-track" [class.picking]="vetoing() !== null" [style.--pc]="vetoColor()" tabindex="-1">
+          <ol class="ht-rail" [attr.aria-label]="'Zeitstrahl von ' + active().name">
+            @for (r of rows(); track r.key) {
+              <li>
+                @switch (r.kind) {
+                  @case ('slot') {
+                    @let by = vetoAt().get(r.i);
+                    @if (chosen() === r.i) {
+                      <span class="ht-slot on" [style.--pc]="'var(--p' + active().color + ')'"><span class="ht-q">?</span><small>{{ active().name }}</small></span>
+                    } @else if (by !== undefined) {
+                      <span class="ht-slot on veto" [style.--pc]="'var(--p' + g.players[by]!.color + ')'"><span class="ht-q">?</span><small>Einspruch {{ g.players[by]!.name }}</small></span>
+                    } @else {
+                      <button class="ht-slot" type="button" [disabled]="!slotEnabled(r.i)" aria-label="Hier einsortieren" (click)="onSlot(r.i)"><span>+</span></button>
+                    }
+                  }
+                  @case ('card') {
+                    <sb-ht-card [card]="r.card" [state]="r.fresh ? 'new' : ''" />
+                  }
+                  @case ('miss') {
+                    <sb-ht-card [card]="r.card" state="miss" />
+                  }
+                }
+              </li>
+            }
+          </ol>
+        </div>
 
-        <div class="ht-end" aria-hidden="true">früher</div>
-        <ol class="ht-line" [attr.aria-label]="'Zeitstrahl von ' + active().name">
-          @for (r of rows(); track r.key) {
-            <li>
-              @switch (r.kind) {
-                @case ('slot') {
-                  <button class="ht-slot" type="button" [class.on]="chosen() === r.i" [disabled]="!canAct()" [attr.aria-pressed]="chosen() === r.i"
-                    [attr.aria-label]="chosen() === r.i ? 'Hier liegt der Song' : 'Hier einsortieren'" (click)="place(r.i)">{{ chosen() === r.i ? 'Hier liegt der Song' : '+' }}</button>
+        @if (vetoPanel(); as vp) {
+          <section class="ht-veto" aria-label="Einspruch">
+            <div class="ht-vh"><h2 class="lbl">Einspruch</h2><span>kostet {{ pluralize(g.rules.vetoCost, 'Token', 'Token') }}</span></div>
+            @if (vetoing() === null) {
+              <p>Wer den Song anders einsortieren würde, kann jetzt widersprechen. Liegt {{ active().name }} falsch und der Einspruch richtig, bekommt er die Karte.</p>
+              <div class="ht-vchips">
+                @for (o of vp; track o.pi) {
+                  <button class="chip txt" type="button" [style.--pc]="'var(--p' + o.color + ')'" [disabled]="!o.can" (click)="vetoing.set(o.pi)">
+                    <span class="dot"></span>{{ o.name }}@if (o.done) { <small> · hat widersprochen</small> } @else if (!o.afford) { <small> · zu wenige Token</small> }
+                  </button>
                 }
-                @case ('card') {
-                  <div class="ht-card" [class.new]="r.fresh"><span class="ht-y">{{ r.card.year }}</span><span class="ht-t"><b>{{ r.card.title }}</b><span>{{ r.card.artist }}</span></span></div>
-                }
-                @case ('miss') {
-                  <div class="ht-card miss"><span class="ht-y">{{ r.card.year }}</span><span class="ht-t"><b>{{ r.card.title }}</b><span>falsch gelegt</span></span></div>
-                }
+              </div>
+            } @else {
+              <p>Tippe im Zeitstrahl auf den Platz, an den <b>{{ g.players[vetoing()!]!.name }}</b> den Song legen würde.</p>
+              <div class="ht-ctrls"><button class="btn sm" type="button" (click)="vetoing.set(null)">Abbrechen</button></div>
+            }
+          </section>
+        }
+
+        <ul class="ht-stands" aria-label="Spielstand">
+          @for (p of g.players; track $index; let i = $index) {
+            <li class="ht-stand" [class.turn]="i === g.turn && !finished()" [style.--pc]="'var(--p' + p.color + ')'">
+              <div class="ht-sh">
+                <span [sbAvatar]="p"></span>
+                <span class="ht-sn"><b>{{ p.name }}@if (g.tbl && g.tblSeat === p.color) { <em class="me">du</em> }</b>
+                  <small>
+                    @for (t of tokenDots(p.tokens); track $index) { <span class="ht-tok"></span> }
+                    {{ pluralize(p.tokens, 'Token', 'Token') }}
+                  </small></span>
+                <span class="ht-n">{{ p.line.length }}<small> / {{ g.rules.goal }}</small></span>
+              </div>
+              @if (i !== g.turn || finished()) {
+                <sb-ht-mini-line [cards]="p.line" [mark]="g.current?.stolenBy === i ? g.current!.card.id : ''" />
               }
             </li>
           }
-        </ol>
-        <div class="ht-end" aria-hidden="true">später</div>
-
-        <ol class="ht-stands" aria-label="Spielstand">
-          @for (p of g.players; track $index; let i = $index) {
-            <li class="ht-stand" [class.turn]="i === g.turn && !finished()" [style.--pc]="'var(--p' + p.color + ')'">
-              <span [sbAvatar]="p"></span>
-              <span><b>{{ p.name }}@if (g.tbl && g.tblSeat === p.color) { <em class="me">du</em> }</b>
-                <small>
-                  @for (t of tokenDots(p.tokens); track $index) { <span class="ht-tok"></span> }
-                  {{ pluralize(p.tokens, 'Token', 'Token') }}
-                </small></span>
-              <span class="ht-n">{{ p.line.length }}<small> / {{ g.rules.goal }}</small></span>
-            </li>
-          }
-        </ol>
-
-        @if (g.players.length > 1) {
-          <div class="ht-others">
-            <h2 class="lbl">Zeitstrahl der anderen</h2>
-            @for (p of others(); track p.name) {
-              <div class="ht-other" [style.--pc]="'var(--p' + p.color + ')'">
-                <div class="ht-who"><span [sbAvatar]="p" small></span>{{ p.name }}</div>
-                <div class="ht-years">@for (card of p.line; track card.id) { <span>{{ card.year }}</span> }</div>
-              </div>
-            }
-          </div>
-        }
+        </ul>
       }
     </main>
 
@@ -181,6 +193,7 @@ export class HitsterBoard {
   protected readonly player = inject(SpotifyPlayer);
   private readonly decks = inject(HitsterDecks);
   private readonly sheets = inject(SheetService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly pluralize = pluralize;
 
   protected readonly game = this.ctx.typed<hitster.HitsterGame>();
@@ -201,9 +214,26 @@ export class HitsterBoard {
   protected readonly prepError = signal('');
   private autoTried = false;
 
+  /** Wer gerade einen Einspruch ansetzt (Index in `players`); die Plätze im Zeitstrahl zeigen dann diese Farbe. */
+  protected readonly vetoing = signal<number | null>(null);
+  protected readonly vetoColor = computed(() => {
+    const pi = this.vetoing();
+    return pi === null ? null : `var(--p${this.game().players[pi]?.color ?? 0})`;
+  });
+  /** Platz im Zeitstrahl → Spieler, der dort Einspruch eingelegt hat. */
+  protected readonly vetoAt = computed(() => new Map((this.game().current?.vetoes ?? []).map(v => [v.slot, v.pi])));
+
   protected readonly subtitle = computed(() => {
     const g = this.game();
     return g.started ? `Ziel ${g.rules.goal} Karten · ${g.deck.length} im Stapel` : g.source?.name || 'Playlist wählen';
+  });
+
+  protected readonly verdict = computed(() => {
+    const g = this.game();
+    const c = g.current;
+    if (!c || c.phase !== 'revealed') return '';
+    if (c.ok) return 'Richtig gelegt!';
+    return c.stolenBy !== undefined ? `Falsch gelegt. ${g.players[c.stolenBy]!.name} gewinnt die Karte per Einspruch.` : 'Falsch gelegt, die Karte ist raus.';
   });
 
   protected readonly rows = computed<Row[]>(() => {
@@ -214,14 +244,32 @@ export class HitsterBoard {
     const out: Row[] = [];
     for (let i = 0; i <= line.length; i++) {
       if (placing) out.push({ kind: 'slot', key: 's' + i, i });
-      else if (c?.phase === 'revealed' && !c.ok && c.slot === i) out.push({ kind: 'miss', key: 'm' + i, card: c.card });
+      else if (c?.phase === 'revealed' && !c.ok && c.slot === i && c.stolenBy === undefined) out.push({ kind: 'miss', key: 'm' + i, card: c.card });
       const card = line[i];
       if (card) out.push({ kind: 'card', key: card.id, card, fresh: c?.phase === 'revealed' && !!c.ok && c.card.id === card.id });
     }
     return out;
   });
 
-  protected readonly others = computed(() => this.game().players.filter((_, i) => i !== this.game().turn));
+  /** Einspruch-Knöpfe: die anderen Spieler, mit dem, was sie auf diesem Gerät dürfen. `null`, wenn es nichts zu zeigen gibt. */
+  protected readonly vetoPanel = computed(() => {
+    const g = this.game();
+    const c = g.current;
+    if (this.finished() || !c || c.phase !== 'placed' || g.rules.vetoCost <= 0) return null;
+    const rows = g.players
+      .map((p, pi) => ({
+        pi,
+        name: p.name,
+        color: p.color,
+        done: !!c.vetoes?.some(v => v.pi === pi),
+        afford: p.tokens >= g.rules.vetoCost,
+        mine: !g.tbl || g.tblSeat == null || p.color === g.tblSeat,
+      }))
+      .filter(r => r.pi !== g.turn);
+    // Niemand kann sich einen Einspruch leisten und keiner hat schon einen: nichts anzeigen
+    if (!rows.some(r => r.afford || r.done)) return null;
+    return rows.filter(r => r.mine || r.done).map(r => ({ ...r, can: r.afford && !r.done && r.mine }));
+  });
 
   protected readonly dock = computed(() => {
     const g = this.game();
@@ -243,6 +291,12 @@ export class HitsterBoard {
     return g.rules.buyCost > 0 && this.active().tokens >= g.rules.buyCost && g.deck.length > 0 && (!g.current || g.current.phase === 'listen');
   });
 
+  /** Ändert sich, wenn im Zeitstrahl etwas Neues sehenswert ist: gewählter Platz, Einspruch, aufgelöste Karte. */
+  private readonly focusKey = computed(() => {
+    const c = this.game().current;
+    return c ? `${c.card.id}:${c.phase}:${c.slot}:${c.vetoes?.length ?? 0}` : 'turn' + this.game().turn;
+  });
+
   constructor() {
     // Gastgeber (oder lokales Spiel) lädt den Stapel von selbst, sobald alles da ist
     effect(() => {
@@ -256,10 +310,30 @@ export class HitsterBoard {
       const c = this.game().current;
       if (c && c.phase === 'listen') untracked(() => void this.player.play(c.card.id));
     });
+    // Einspruch ist nur in seiner Phase möglich
+    effect(() => {
+      if (this.game().current?.phase !== 'placed') untracked(() => this.vetoing.set(null));
+    });
+    // Zeitstrahl zur interessanten Stelle scrollen
+    effect(() => {
+      this.focusKey();
+      untracked(() => setTimeout(() => this.scrollToFocus(), 60));
+    });
     inject(DestroyRef).onDestroy(() => {
       void this.player.pause();
       this.player.reset();
     });
+  }
+
+  private scrollToFocus(): void {
+    const root = this.host.nativeElement;
+    const el = root.querySelector<HTMLElement>('.ht-rail .ht-slot.on, .ht-rail .htc.new, .ht-rail .htc.miss');
+    const track = root.querySelector<HTMLElement>('.ht-track');
+    if (el && track) {
+      // Nur den Zeitstrahl bewegen, nicht die ganze Seite
+      const left = el.offsetLeft - track.clientWidth / 2 + el.offsetWidth / 2;
+      track.scrollTo({ left: Math.max(0, left), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    } else if (track && !this.game().current) track.scrollTo({ left: 0 });
   }
 
   protected tokenDots = (n: number): number[] => Array.from({ length: Math.min(n, 8) });
@@ -303,8 +377,25 @@ export class HitsterBoard {
     if (this.ctx.update<hitster.HitsterGame, string | null>(g => hitster.draw(g)) === null) this.ctx.notify('Der Stapel ist leer');
   }
 
-  protected place(slot: number): void {
-    if (this.canAct()) this.ctx.update<hitster.HitsterGame>(g => void hitster.place(g, slot));
+  /** Im Zeitstrahl kann man legen (Spieler am Zug) oder, während ein Einspruch angesetzt wird, den Einspruchsplatz wählen. */
+  protected slotEnabled(slot: number): boolean {
+    const c = this.game().current;
+    if (!c || c.phase === 'revealed' || this.finished()) return false;
+    if (this.vetoing() !== null) return slot !== c.slot && !c.vetoes?.some(v => v.slot === slot);
+    return this.canAct() && !c.vetoes?.length;
+  }
+
+  protected onSlot(slot: number): void {
+    if (!this.slotEnabled(slot)) return;
+    const pi = this.vetoing();
+    if (pi === null) {
+      this.ctx.update<hitster.HitsterGame>(g => void hitster.place(g, slot));
+      return;
+    }
+    const error = this.ctx.update<hitster.HitsterGame, string | null>(g => hitster.veto(g, pi, slot));
+    if (error) this.ctx.notify(error);
+    else this.ctx.notify(`${this.game().players[pi]!.name} legt Einspruch ein`, true);
+    this.vetoing.set(null);
   }
 
   protected reveal(): void {
@@ -330,11 +421,6 @@ export class HitsterBoard {
   protected buy(): void {
     const msg = this.ctx.update<hitster.HitsterGame, string | null>(g => hitster.buyCard(g));
     if (msg) this.ctx.notify(msg, true);
-  }
-
-  protected replay(): void {
-    const c = this.game().current;
-    if (c) void this.player.play(c.card.id, true);
   }
 
   protected fixYear(): void {

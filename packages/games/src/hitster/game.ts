@@ -8,6 +8,8 @@ export interface HitsterCard {
   title: string;
   artist: string;
   year: number;
+  /** Bild-ID des Albumcovers bei Spotify (`i.scdn.co/image/<ID>`). Fehlt, wenn Spotify keines nennt. */
+  cover?: string;
 }
 
 export interface HitsterPlayer extends SeatedPlayer {
@@ -26,6 +28,18 @@ export interface HitsterCurrent {
   slot: number | null;
   /** Nur nach dem Auflösen: richtig gelegt? */
   ok?: boolean;
+  /** Einsprüche anderer Spieler in der Reihenfolge, in der sie eingelegt wurden. */
+  vetoes?: HitsterVeto[];
+  /** Nur nach dem Auflösen: Wer die falsch gelegte Karte per Einspruch gewonnen hat (Index in `players`). */
+  stolenBy?: number;
+  /** Token für Titel und Interpret wurde für diese Karte schon vergeben. */
+  guessed?: boolean;
+}
+
+/** Ein Einspruch: Spieler `pi` hält einen anderen Platz im Zeitstrahl des Spielers am Zug für richtig und setzt dafür ein Token ein. */
+export interface HitsterVeto {
+  pi: number;
+  slot: number;
 }
 
 export interface DeckRef {
@@ -62,6 +76,8 @@ export interface HitsterRules {
   guessReward: number;
   /** Token für „Karte kaufen“, 0 = aus. */
   buyCost: number;
+  /** Token für einen Einspruch gegen die Platzierung eines anderen, 0 = aus. */
+  vetoCost: number;
 }
 
 export interface HitsterOptions extends HitsterRules {
@@ -76,7 +92,8 @@ export interface HitsterOptions extends HitsterRules {
 export type HitsterUndo =
   | { k: 'draw' }
   | { k: 'place'; prev: number | null }
-  | { k: 'reveal'; at: number; ok: boolean }
+  | { k: 'reveal'; at: number; ok: boolean; by: number | null }
+  | { k: 'veto'; pi: number; cost: number }
   | { k: 'end'; turn: number; current: HitsterCurrent }
   | { k: 'skip'; cost: number }
   | { k: 'guess'; pi: number; delta: number }
@@ -96,7 +113,9 @@ export interface HitsterGame extends BaseGame<HitsterPlayer> {
   undo: HitsterUndo[];
 }
 
-export const DEFAULT_RULES: HitsterRules = { goal: 10, startTokens: 2, skipCost: 1, guessReward: 1, buyCost: 3 };
+export const DEFAULT_RULES: HitsterRules = { goal: 10, startTokens: 2, skipCost: 1, guessReward: 1, buyCost: 3, vetoCost: 1 };
+/** Bild-IDs bei Spotify sind 40 Hex-Zeichen. */
+export const COVER_RE = /^[a-f0-9]{40}$/;
 export const MAX_CARDS = 400;
 export const MAX_DECKS = 30;
 export const MAX_YEARS = 2000;
@@ -104,6 +123,9 @@ export const MAX_LINE = 100;
 export const MAX_TOKENS = 99;
 export const MIN_YEAR = 1900;
 export const maxYear = (): number => new Date().getFullYear() + 1;
+
+/** Adresse des Covers oder `null`. Die Bilder liefert das Spotify-CDN. */
+export const coverUrl = (card: Pick<HitsterCard, 'cover'>): string | null => (card.cover ? `https://i.scdn.co/image/${card.cover}` : null);
 
 export const trackUri = (card: Pick<HitsterCard, 'id'>): string => `spotify:track:${card.id}`;
 
@@ -116,6 +138,7 @@ export function normalizeRules(raw: unknown): HitsterRules {
     skipCost: pick(r.skipCost, DEFAULT_RULES.skipCost, 0, 5),
     guessReward: pick(r.guessReward, DEFAULT_RULES.guessReward, 0, 3),
     buyCost: pick(r.buyCost, DEFAULT_RULES.buyCost, 0, 10),
+    vetoCost: pick(r.vetoCost, DEFAULT_RULES.vetoCost, 0, 3),
   };
 }
 
@@ -168,7 +191,9 @@ export function cleanCard(raw: unknown): HitsterCard | null {
   if (!c || typeof c !== 'object' || !isId(c['id'])) return null;
   const year = Math.round(num(c['year']));
   if (year < MIN_YEAR || year > maxYear()) return null;
-  return { id: c['id'], title: String(c['title'] ?? '?').slice(0, 80), artist: String(c['artist'] ?? '?').slice(0, 60), year };
+  const card: HitsterCard = { id: c['id'], title: String(c['title'] ?? '?').slice(0, 80), artist: String(c['artist'] ?? '?').slice(0, 60), year };
+  if (typeof c['cover'] === 'string' && COVER_RE.test(c['cover'])) card.cover = c['cover'];
+  return card;
 }
 
 export function cleanCards(raw: unknown, max: number): HitsterCard[] {
@@ -270,7 +295,7 @@ export function draw(g: HitsterGame): string | null {
 /** Wählt den Platz im Zeitstrahl. Solange nicht aufgelöst ist, darf er geändert werden. */
 export function place(g: HitsterGame, slot: number): boolean {
   const c = g.current;
-  if (!c || c.phase === 'revealed') return false;
+  if (!c || c.phase === 'revealed' || c.vetoes?.length) return false;
   const line = active(g).line;
   if (!Number.isInteger(slot) || slot < 0 || slot > line.length) return false;
   pushUndo(g.undo, { k: 'place', prev: c.slot });
@@ -279,36 +304,76 @@ export function place(g: HitsterGame, slot: number): boolean {
   return true;
 }
 
-function applyReveal(g: HitsterGame): boolean {
+/**
+ * Wertet die gelegte Karte. Richtig: sie kommt in den Zeitstrahl des Spielers am Zug. Falsch: Wer per Einspruch
+ * einen passenden Platz gewählt hat (der Erste in der Reihenfolge der Einsprüche), bekommt sie in den eigenen
+ * Zeitstrahl, sonst ist sie raus.
+ */
+function applyReveal(g: HitsterGame): { ok: boolean; by: number | null } {
   const c = g.current!;
   const line = active(g).line;
   const ok = fits(line, c.slot!, c.card.year);
+  let by: number | null = null;
   if (ok) line.splice(c.slot!, 0, c.card);
-  else g.discard.push(c.card);
+  else {
+    const hit = (c.vetoes ?? []).find(v => fits(line, v.slot, c.card.year));
+    if (hit) {
+      by = hit.pi;
+      const mine = g.players[hit.pi]!.line;
+      mine.splice(insertionIndex(mine, c.card.year), 0, c.card);
+      c.stolenBy = hit.pi;
+    } else g.discard.push(c.card);
+  }
   c.phase = 'revealed';
   c.ok = ok;
-  return ok;
+  return { ok, by };
 }
 
 function unapplyReveal(g: HitsterGame): void {
   const c = g.current!;
-  if (c.ok) {
-    const line = active(g).line;
+  const take = (line: HitsterCard[]) => {
     const at = line.findIndex(x => x.id === c.card.id);
     if (at >= 0) line.splice(at, 1);
-  } else g.discard.pop();
+  };
+  if (c.ok) take(active(g).line);
+  else if (c.stolenBy !== undefined) take(g.players[c.stolenBy]!.line);
+  else g.discard.pop();
   c.phase = 'placed';
   delete c.ok;
+  delete c.stolenBy;
 }
 
-/** Löst auf, ob die Karte richtig liegt. Richtige wandern in den Zeitstrahl, falsche auf den Ablagestapel. */
-export function reveal(g: HitsterGame): { ok: boolean; message: string } | null {
+/** Löst auf, ob die Karte richtig liegt. */
+export function reveal(g: HitsterGame): { ok: boolean; by: number | null; message: string } | null {
   const c = g.current;
   if (!c || c.phase !== 'placed' || c.slot === null) return null;
   const at = c.slot;
-  const ok = applyReveal(g);
-  pushUndo(g.undo, { k: 'reveal', at, ok });
-  return { ok, message: ok ? `Richtig! ${c.card.year}` : `Leider falsch: ${c.card.year}` };
+  const { ok, by } = applyReveal(g);
+  pushUndo(g.undo, { k: 'reveal', at, ok, by });
+  const message = ok ? `Richtig! ${c.card.year}` : by !== null ? `${c.card.year}: ${g.players[by]!.name} gewinnt die Karte per Einspruch` : `Leider falsch: ${c.card.year}`;
+  return { ok, by, message };
+}
+
+/**
+ * Einspruch: Ein anderer Spieler setzt Token ein und nennt einen anderen Platz im Zeitstrahl des Spielers am Zug.
+ * Geht nur nach dem Legen und vor dem Auflösen, einmal je Spieler, und jeder Platz nur einmal. Das Token ist weg, egal wie es ausgeht.
+ * Gibt eine Fehlermeldung zurück oder `null`, wenn es geklappt hat.
+ */
+export function veto(g: HitsterGame, pi: number, slot: number): string | null {
+  const c = g.current;
+  const cost = g.rules.vetoCost;
+  if (cost <= 0) return 'Einsprüche sind ausgeschaltet';
+  if (!c || c.phase !== 'placed' || c.slot === null) return 'Einspruch geht erst, wenn die Karte gelegt ist';
+  const p = g.players[pi];
+  if (!p || pi === g.turn) return 'Der Spieler am Zug kann keinen Einspruch einlegen';
+  if (c.vetoes?.some(v => v.pi === pi)) return `${p.name} hat schon Einspruch eingelegt`;
+  if (p.tokens < cost) return 'Zu wenige Token';
+  if (!Number.isInteger(slot) || slot < 0 || slot > active(g).line.length) return 'Ungültiger Platz';
+  if (slot === c.slot || c.vetoes?.some(v => v.slot === slot)) return 'Dieser Platz ist schon belegt';
+  p.tokens -= cost;
+  (c.vetoes ??= []).push({ pi, slot });
+  pushUndo(g.undo, { k: 'veto', pi, cost });
+  return null;
 }
 
 /** Beendet den Zug und gibt an den nächsten Spieler weiter. */
@@ -336,13 +401,15 @@ export function skip(g: HitsterGame): string | null {
   return null;
 }
 
-/** Titel und Interpret richtig genannt: Token für den Spieler am Zug. */
+/** Titel und Interpret richtig genannt: Token für den Spieler am Zug. Erst nach dem Auflösen (dann ist es nachprüfbar) und einmal je Karte. */
 export function rewardGuess(g: HitsterGame): string | null {
-  if (!g.started) return null;
+  const c = g.current;
+  if (!g.started || !c || c.phase !== 'revealed' || c.guessed) return null;
   const p = active(g);
   const delta = Math.min(g.rules.guessReward, MAX_TOKENS - p.tokens);
   if (delta <= 0) return null;
   p.tokens += delta;
+  c.guessed = true;
   pushUndo(g.undo, { k: 'guess', pi: g.turn, delta });
   return `${p.name}: +${delta} Token`;
 }
@@ -422,7 +489,17 @@ export function undo(g: HitsterGame): string | null {
       break;
     case 'guess':
       g.players[u.pi]!.tokens = Math.max(0, g.players[u.pi]!.tokens - u.delta);
+      if (c) delete c.guessed;
       break;
+    case 'veto': {
+      const q = g.players[u.pi];
+      if (c?.vetoes) {
+        c.vetoes = c.vetoes.filter(v => v.pi !== u.pi);
+        if (!c.vetoes.length) delete c.vetoes;
+      }
+      if (q) q.tokens = Math.min(MAX_TOKENS, q.tokens + u.cost);
+      break;
+    }
     case 'buy': {
       const q = g.players[u.pi]!;
       const at = q.line.findIndex(x => x.id === u.id);

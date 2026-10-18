@@ -82,6 +82,8 @@ export const hitsterEngine: GameEngine<HitsterGame, HitsterOptions> = {
         return 'Überspringen zurücknehmen';
       case 'guess':
         return 'Token zurücknehmen';
+      case 'veto':
+        return 'Einspruch zurücknehmen';
       case 'buy':
         return 'Kauf zurücknehmen';
       case 'year':
@@ -119,7 +121,25 @@ export const hitsterEngine: GameEngine<HitsterGame, HitsterOptions> = {
       const slot = c['slot'] === null || c['slot'] === undefined ? null : clampInt(c['slot'], 0, line.length);
       // Ohne gewählten Platz gibt es nichts aufzulösen
       const safe = phase !== 'listen' && slot === null ? 'listen' : phase;
-      out.current = { card, phase: safe, slot, ...(safe === 'revealed' ? { ok: !!c['ok'] } : {}) };
+      const current: H.HitsterCurrent = { card, phase: safe, slot };
+      if (safe === 'revealed') current.ok = !!c['ok'];
+
+      if (safe !== 'listen') {
+        // Einsprüche: nicht vom Spieler am Zug, je Spieler und je Platz nur einer, nie auf dem gewählten Platz
+        const vetoes: H.HitsterVeto[] = [];
+        for (const v of (Array.isArray(c['vetoes']) ? c['vetoes'] : []).slice(0, out.players.length)) {
+          const pi = clampInt(v?.pi, 0, out.players.length - 1);
+          const vs = clampInt(v?.slot, 0, line.length);
+          if (pi !== out.turn && vs !== slot && !vetoes.some(x => x.pi === pi || x.slot === vs)) vetoes.push({ pi, slot: vs });
+        }
+        if (vetoes.length) current.vetoes = vetoes;
+      }
+      if (safe === 'revealed') {
+        const by = c['stolenBy'] === undefined ? -1 : clampInt(c['stolenBy'], 0, out.players.length - 1);
+        if (!current.ok && by >= 0 && by !== out.turn) current.stolenBy = by;
+        if (c['guessed']) current.guessed = true;
+      }
+      out.current = current;
     }
     out.undo = [];
   },

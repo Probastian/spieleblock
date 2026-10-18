@@ -20,8 +20,12 @@ import { SheetHeadComponent } from '../../shared/ui/sheet-head.component';
           <p>Vor dem Legen kannst du für Token einen Song überspringen und eine neue Karte ziehen.</p>
         </div>
         <div class="ritem">
+          <div class="ritem-h"><b>Einspruch</b></div>
+          <p>Hat jemand die Karte gelegt, können die anderen widersprechen: Wer den Song anders einsortieren würde, setzt ein Token ein und tippt auf einen anderen Platz im Zeitstrahl. Pro Spieler ein Einspruch, und jeder Platz nur einmal. Liegt der Spieler am Zug richtig, bleibt die Karte bei ihm. Liegt er falsch und ein Einspruch richtig, bekommt der Widersprechende die Karte in seinen eigenen Zeitstrahl, bei mehreren der Erste. Das Token ist in jedem Fall weg. Sobald es einen Einspruch gibt, kann der Platz nicht mehr geändert werden.</p>
+        </div>
+        <div class="ritem">
           <div class="ritem-h"><b>Titel und Interpret</b></div>
-          <p>Wer beides richtig nennt, bekommt Token. Ob es stimmt, entscheidet die Runde, der Block zählt nur mit.</p>
+          <p>Nach dem Auflösen stehen beide auf der Karte. Hat der Spieler am Zug sie vorher richtig genannt, bekommt er Token, einmal je Karte. Ob es stimmte, entscheidet die Runde, der Block zählt nur mit.</p>
         </div>
         <div class="ritem">
           <div class="ritem-h"><b>Karte kaufen</b></div>

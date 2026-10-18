@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeSpotifyError, parsePlaylistId, pkceChallenge, randomToken, trackOf, yearOf } from './spotify.util';
+import { coverIdOf, describeSpotifyError, parsePlaylistId, pkceChallenge, randomToken, trackOf, yearOf } from './spotify.util';
 
 describe('PKCE', () => {
   it('berechnet den Prüfwert aus der RFC-7636-Vorlage', async () => {
@@ -28,7 +28,7 @@ describe('Tracks lesen', () => {
   const song = { id: '4cOdK2wGLETKBW3PvgPWqT', type: 'track', name: 'Teenage Dirtbag', artists: [{ name: 'Wheatus' }], album: { release_date: '2000-09-29' }, external_ids: { isrc: 'USSM10008431' } };
 
   it('liest einen Song, auch wenn nur track oder nur item gesetzt ist', () => {
-    const expected = { id: '4cOdK2wGLETKBW3PvgPWqT', title: 'Teenage Dirtbag', artists: ['Wheatus'], year: 2000, isrc: 'USSM10008431' };
+    const expected = { id: '4cOdK2wGLETKBW3PvgPWqT', title: 'Teenage Dirtbag', artists: ['Wheatus'], year: 2000, isrc: 'USSM10008431', cover: null };
     expect(trackOf(entry(song))).toEqual(expected);
     expect(trackOf({ track: song })).toEqual(expected);
     expect(trackOf({ item: song })).toEqual(expected);
@@ -47,6 +47,18 @@ describe('Tracks lesen', () => {
   it('kommt mit fehlenden Feldern zurecht', () => {
     const t = trackOf(entry({ id: song.id, name: 'X', artists: [{ name: 'Y' }] }));
     expect(t).toMatchObject({ year: null, isrc: null });
+  });
+
+  it('nimmt aus der Cover-Liste das kleinste scharfe Bild', () => {
+    const id = (prefix: string) => prefix + 'a'.repeat(40 - prefix.length);
+    const img = (prefix: string, width: number) => ({ url: 'https://i.scdn.co/image/' + id(prefix), width, height: width });
+    const images = [img('ab67616d0000b273', 640), img('ab67616d00001e02', 300), img('ab67616d00004851', 64)];
+    expect(coverIdOf(images)).toBe(id('ab67616d00001e02'));
+    expect(coverIdOf([images[0], images[2]])).toBe(id('ab67616d0000b273')); // lieber das große als das verwaschene 64er
+    expect(coverIdOf([images[2]])).toBe(id('ab67616d00004851')); // gibt es nur das kleine, nehmen wir es
+    expect(coverIdOf([{ url: 'https://i.scdn.co/image/kaputt', width: 300 }, 'müll', null])).toBeNull();
+    expect(coverIdOf(undefined)).toBeNull();
+    expect(trackOf({ track: { ...song, album: { release_date: '2000', images } } })?.cover).toBe(id('ab67616d00001e02'));
   });
 
   it('versteht Datumsformate', () => {
