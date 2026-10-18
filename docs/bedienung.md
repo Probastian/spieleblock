@@ -53,7 +53,7 @@ Für jedes Spiel ohne eigenen Block. **Runde eintragen**, für jeden Spieler die
 1. Block öffnen, Reiter **Spiele**, bei **Live-Tisch beitreten** den Code eintippen.
 2. Den eigenen Namen wählen (**Das bin ich**).
 
-Danach sieht jeder den Stand sofort und kann eintragen. Trägt jemand für einen anderen ein, ist das erlaubt: Es gibt bewusst keine Rechte, wer den Code kennt, schreibt mit. Der Gastgeber beendet den Tisch für alle; Mitspieler können ihn verlassen und behalten ihre Kopie. Ein Tisch, der länger nicht benutzt wird, verschwindet nach einigen Tagen von selbst. Dein Spielstand bleibt dir.
+Danach sieht jeder den Stand sofort und kann eintragen. Auch die Würfel sind geteilt: Wer würfelt oder Augen eingibt, zeigt allen den Wurf. Trägt jemand für einen anderen ein, ist das erlaubt: Es gibt bewusst keine Rechte, wer den Code kennt, schreibt mit. Der Gastgeber beendet den Tisch für alle; Mitspieler können ihn verlassen und behalten ihre Kopie. Ein Tisch, der länger nicht benutzt wird, verschwindet nach einigen Tagen von selbst. Dein Spielstand bleibt dir.
 
 ## Daten sichern, zweites Gerät, Handywechsel
 

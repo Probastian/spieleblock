@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { kniffel } from '@spieleblock/games';
 import { PlayContext } from '../../features/play/play-context';
 import { DieComponent } from '../../shared/ui/die.component';
@@ -68,6 +68,22 @@ export class KniffelDock {
   private readonly viewed = computed(() => this.game().players[this.game().view]!);
   protected readonly extraApplies = computed(() => this.extraPoints() > 0 && this.viewed().scores['kn'] === 50);
   protected readonly best = computed(() => (this.full() ? kniffel.bestField(this.game(), this.viewed()) : null));
+
+  private seen: { id: string; dice: number[]; rolls: number } | null = null;
+
+  constructor() {
+    // Würfel purzeln lassen, sobald ein Wurf dazukommt – auch wenn er von einem anderen Gerät am Live-Tisch stammt
+    effect(() => {
+      const { id, dice, rolls } = this.game();
+      untracked(() => {
+        const before = this.seen;
+        this.seen = { id, dice: dice.slice(), rolls };
+        if (before?.id !== id || rolls <= before.rolls) return;
+        const fresh = dice.flatMap((x, i) => (x && !before.dice[i] ? [i] : []));
+        if (fresh.length) this.actions.tumble(fresh);
+      });
+    });
+  }
 
   protected fieldName(id: string): string {
     return kniffel.FIELDS_BY_ID[id]?.name ?? id;

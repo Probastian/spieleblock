@@ -70,7 +70,7 @@ Dokumentpfade (siehe `shared/paths.ts`):
 
 ## Live-Tisch
 
-Jedes Gerät hat eine lokale Kopie des Spiels. Der `TableService` lädt Änderungen nach kurzer Pause hoch. Dabei werden letzter gemeinsamer Stand, eigene und fremde Fassung per Dreiwege-Merge verbunden, damit gleichzeitige Eingaben verschiedener Spieler nicht überschreiben. Die Live-Verbindung (SSE) meldet Änderungen anderer sofort. Felder, die nur ein Gerät betreffen (Rückgängig-Verlauf, angezeigter Spieler, bei Kniffel die Würfelablage), gehören nicht in die geteilte Fassung; jede Engine nennt sie in `localKeys`.
+Jedes Gerät hat eine lokale Kopie des Spiels. Der `TableService` lädt Änderungen nach kurzer Pause hoch. Dabei werden letzter gemeinsamer Stand, eigene und fremde Fassung per Dreiwege-Merge verbunden, damit gleichzeitige Eingaben verschiedener Spieler nicht überschreiben. Die Live-Verbindung (SSE) meldet Änderungen anderer sofort. Felder, die nur ein Gerät betreffen (Rückgängig-Verlauf, angezeigter Spieler, bei Kniffel die Eingabeart), gehören nicht in die geteilte Fassung; jede Engine nennt sie in `localKeys`.
 
 ## Oberfläche
 

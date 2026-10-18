@@ -16,7 +16,7 @@ export const kniffelEngine: GameEngine<KniffelGame, KniffelOptions> = {
   maxPlayers: 8,
   includeInTrend: true,
   defaultOptions: DEFAULTS,
-  localKeys: ['dice', 'rolls', 'first', 'input'],
+  localKeys: ['input'],
 
   normalizeOptions(raw) {
     const o = (raw ?? {}) as Partial<KniffelOptions>;
@@ -82,7 +82,7 @@ export const kniffelEngine: GameEngine<KniffelGame, KniffelOptions> = {
     out.variant = isVariantKey(g['variant']) ? g['variant'] : 'classic';
     out.extra = !!g['extra'];
     out.firstRule = !!g['firstRule'];
-    out.first = false;
+    out.first = !!g['first'];
     out.input = g['input'] === 'number' ? 'number' : 'dice';
     out.dice = Array.isArray(g['dice']) && g['dice'].length === 5 ? g['dice'].map((x: unknown) => clampInt(x, 0, 6)) : [0, 0, 0, 0, 0];
     out.rolls = clampInt(g['rolls'], 0, 3);

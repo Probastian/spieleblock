@@ -59,9 +59,12 @@ export class KniffelActions {
   }
 
   roll(): void {
-    const rolled = this.ctx.update<Game, number[]>(g => kniffel.roll(g));
-    if (!rolled?.length) return;
-    this.rolled.set(rolled);
+    this.ctx.update<Game>(g => void kniffel.roll(g));
+  }
+
+  /** Lässt die Würfel auf den Plätzen `slots` kurz purzeln. Gilt für eigene und am Live-Tisch fremde Würfe. */
+  tumble(slots: number[]): void {
+    this.rolled.set(slots);
     clearTimeout(this.rolledTimer);
     this.rolledTimer = setTimeout(() => this.rolled.set([]), TUMBLE_MS);
   }

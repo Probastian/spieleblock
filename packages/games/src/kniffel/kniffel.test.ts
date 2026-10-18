@@ -161,6 +161,16 @@ describe('Kniffel: Engine', () => {
     expect(sanitizeGame({ id: 'x', type: 'doom', players: [{}] }, engineOf)).toBeNull();
   });
 
+  it('teilt die Würfelablage am Live-Tisch, nur die Eingabeart bleibt lokal', () => {
+    expect(kniffelEngine.localKeys).toEqual(['input']);
+    const g = newGame();
+    K.roll(g, () => 4);
+    const clean = sanitizeGame(JSON.parse(JSON.stringify(g)), engineOf) as K.KniffelGame;
+    expect(clean.dice).toEqual([4, 4, 4, 4, 4]);
+    expect(clean.rolls).toBe(1);
+    expect(clean.first).toBe(true);
+  });
+
   it('kennt beide Varianten', () => {
     expect(Object.keys(VARIANTS)).toEqual(['classic', 'extreme']);
   });
