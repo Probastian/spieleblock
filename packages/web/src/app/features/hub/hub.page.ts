@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AppInfo } from '../../core/api/app-info.service';
 import { SyncService } from '../../core/state/sync.service';
 import { SheetService } from '../../core/ui/sheet.service';
 import { formatToday } from '../../core/util/format';
@@ -32,6 +33,9 @@ export type HubTab = 'spiele' | 'spieler' | 'verlauf';
         @case ('spieler') { <sb-players-tab /> }
         @case ('verlauf') { <sb-history-tab /> }
       }
+      @if (info.version(); as v) {
+        <footer class="hub-version">Spieleblock {{ v }}</footer>
+      }
     </main>
     <nav class="tabbar" aria-label="Hauptmenü">
       <div class="wrap">
@@ -46,10 +50,15 @@ export class HubPage {
   /** Aus den Routendaten. */
   readonly tab = input<HubTab>('spiele');
 
+  protected readonly info = inject(AppInfo);
   protected readonly sync = inject(SyncService);
   protected readonly sheets = inject(SheetService);
   protected readonly storageSheet = StorageSheet;
   protected readonly today = formatToday();
+  constructor() {
+    void this.info.load();
+  }
+
   protected readonly tabs: { key: HubTab; label: string; icon: IconName }[] = [
     { key: 'spiele', label: 'Spiele', icon: 'tabGames' },
     { key: 'spieler', label: 'Spieler', icon: 'tabPeople' },

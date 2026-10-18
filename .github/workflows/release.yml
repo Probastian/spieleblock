@@ -66,7 +66,9 @@ jobs:
       - run: npm run check
 
       - name: Paket für die Installation ohne Docker
-        run: tar -czf "spieleblock-v${{ steps.meta.outputs.version }}.tar.gz" -C packages/server/dist server.mjs public
+        run: |
+          echo "v${{ steps.meta.outputs.version }}" > packages/server/dist/VERSION
+          tar -czf "spieleblock-v${{ steps.meta.outputs.version }}.tar.gz" -C packages/server/dist server.mjs public VERSION
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -81,6 +83,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: APP_VERSION=v${{ steps.meta.outputs.version }}
           tags: |
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.version }}
             ${{ steps.meta.outputs.image }}:latest

@@ -40,6 +40,8 @@ export interface InfoResponse {
   app: 'spieleblock';
   needAccess: boolean;
   ok: boolean;
+  /** Release-Version des Servers, z. B. `v2.0.1`, oder `dev`. */
+  version: string;
 }
 
 export interface MeResponse {

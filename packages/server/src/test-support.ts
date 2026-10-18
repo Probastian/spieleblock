@@ -27,6 +27,7 @@ export function testConfig(dir: string, overrides: Partial<Config> = {}): Config
     maxDocBytes: 4096,
     ratePerMin: 10_000,
     log: false,
+    version: 'v1.2.3',
     ...overrides,
   };
 }

@@ -20,7 +20,7 @@ afterEach(() => srv.close());
 describe('API', () => {
   it('meldet sich und leitet die Nutzer-ID aus der Gerätekennung ab', async () => {
     expect(await (await call('/healthz')).text()).toBe('ok');
-    expect(await (await call('/api/info')).json()).toEqual({ app: 'spieleblock', needAccess: false, ok: true });
+    expect(await (await call('/api/info')).json()).toEqual({ app: 'spieleblock', needAccess: false, ok: true, version: 'v1.2.3' });
     expect(await (await call('/api/me', { headers: asUser })).json()).toEqual({ uid });
     expect((await call('/api/me', { headers: { [HEADERS.deviceKey]: 'kaputt' } })).status).toBe(400);
   });

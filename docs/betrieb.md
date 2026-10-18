@@ -64,6 +64,8 @@ Auf GitHub unter **Actions → Release → Run workflow**. Optional einen Commit
 * daran das Paket `spieleblock-vX.Y.Z.tar.gz` (`server.mjs` und `public/`) für die Installation ohne Docker,
 * das Docker-Image `ghcr.io/probastian/spieleblock` mit den Tags `X.Y.Z` und `latest` (amd64 und arm64).
 
+Die Version steht unten im Hauptmenü der App. Der Server liest sie aus `APP_VERSION` oder der Datei `VERSION` neben `server.mjs` (Paket und Image legen sie an); ohne beides zeigt die App `dev`.
+
 Das erste Release bekommt die Version aus der `package.json`. Das Docker-Image ist nach dem ersten Release zunächst privat: In den Paket-Einstellungen auf GitHub auf *Public* stellen, sonst muss der Server sich bei `ghcr.io` anmelden.
 
 ### Automatisch auf dem Server

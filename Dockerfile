@@ -13,10 +13,11 @@ RUN npm run build
 # --- Laufzeit: eine Datei Server plus die gebaute Web-App, keine Pakete ----------------------
 FROM node:24-alpine
 ENV NODE_ENV=production PORT=3000 DATA_DIR=/data
+ARG APP_VERSION=
 WORKDIR /app
 COPY --from=build /app/packages/server/dist/server.mjs ./server.mjs
 COPY --from=build /app/packages/server/dist/public ./public
-RUN mkdir -p /data && chown node:node /data
+RUN echo "$APP_VERSION" > VERSION && mkdir -p /data && chown node:node /data
 USER node
 VOLUME /data
 EXPOSE 3000

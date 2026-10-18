@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 
 export interface Config {
@@ -14,9 +15,25 @@ export interface Config {
   maxDocBytes: number;
   ratePerMin: number;
   log: boolean;
+  /** Release-Version, z. B. `v2.0.1`; `dev` ohne Release. */
+  version: string;
 }
 
 type Env = Record<string, string | undefined>;
+
+/** Version aus `APP_VERSION` oder der Datei `VERSION` neben der Server-Datei (legen Release-Paket und Docker-Image an). */
+function readVersion(env: Env, baseDir: string): string {
+  let raw = env['APP_VERSION']?.trim() ?? '';
+  if (!raw) {
+    try {
+      raw = fs.readFileSync(path.join(baseDir, 'VERSION'), 'utf8').trim();
+    } catch {
+      /* keine Datei: Entwicklungsstand */
+    }
+  }
+  if (!raw) return 'dev';
+  return /^\d/.test(raw) ? 'v' + raw : raw;
+}
 
 /** Liest die Einstellungen aus den Umgebungsvariablen. `baseDir` ist der Ordner der Server-Datei. */
 export function loadConfig(env: Env, baseDir: string): Config {
@@ -37,5 +54,6 @@ export function loadConfig(env: Env, baseDir: string): Config {
     maxDocBytes: int('MAX_DOC_BYTES', 262_144),
     ratePerMin: int('RATE_PER_MIN', 1200),
     log: str('LOG', '1') !== '0',
+    version: readVersion(env, baseDir),
   };
 }
