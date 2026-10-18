@@ -9,6 +9,9 @@ export interface SpotifyTrack {
   /** Jahr des Albums laut Spotify (kann bei Sammlern und Neuauflagen vom Original abweichen). */
   year: number | null;
   isrc: string | null;
+  /** Name und Art des Albums (`album`, `single`, `compilation`), damit Neuauflagen und Sampler auffallen. */
+  album: string;
+  albumType: string;
   /** Bild-ID des Albumcovers (40 Hex-Zeichen der Adresse bei `i.scdn.co`), falls vorhanden. */
   cover: string | null;
 }
@@ -59,7 +62,7 @@ export function trackOf(entry: unknown): SpotifyTrack | null {
   if (typeof t['id'] !== 'string' || !/^[A-Za-z0-9]{10,30}$/.test(t['id']) || typeof t['name'] !== 'string') return null;
   const artists = (Array.isArray(t['artists']) ? t['artists'] : []).map((a: any) => String(a?.name ?? '')).filter(Boolean);
   if (!artists.length) return null;
-  return { id: t['id'], title: t['name'], artists, year: yearOf(t['album']?.['release_date']), isrc: typeof t['external_ids']?.['isrc'] === 'string' ? t['external_ids']['isrc'] : null, cover: coverIdOf(t['album']?.['images']) };
+  return { id: t['id'], title: t['name'], artists, year: yearOf(t['album']?.['release_date']), isrc: typeof t['external_ids']?.['isrc'] === 'string' ? t['external_ids']['isrc'] : null, cover: coverIdOf(t['album']?.['images']), album: String(t['album']?.['name'] ?? '').slice(0, 120), albumType: String(t['album']?.['album_type'] ?? '') };
 }
 
 /** Anzeige-Interpret für die Karte: alle Namen, gekürzt. */

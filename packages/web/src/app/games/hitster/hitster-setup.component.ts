@@ -200,7 +200,8 @@ export class HitsterSetup {
   }
 
   protected minutes(songs: number): string {
-    const m = Math.max(1, Math.round((songs * 1.5) / 60));
+    // Schnelle Stufe: 20 Songs je Anfrage; genaue Stufe nur für verdächtige Alben (grob ein Drittel)
+    const m = Math.max(1, Math.round((songs * 0.5) / 60));
     return m === 1 ? 'eine Minute' : `${m} Minuten`;
   }
 }

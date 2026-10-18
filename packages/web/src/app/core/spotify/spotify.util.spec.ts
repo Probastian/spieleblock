@@ -28,7 +28,7 @@ describe('Tracks lesen', () => {
   const song = { id: '4cOdK2wGLETKBW3PvgPWqT', type: 'track', name: 'Teenage Dirtbag', artists: [{ name: 'Wheatus' }], album: { release_date: '2000-09-29' }, external_ids: { isrc: 'USSM10008431' } };
 
   it('liest einen Song, auch wenn nur track oder nur item gesetzt ist', () => {
-    const expected = { id: '4cOdK2wGLETKBW3PvgPWqT', title: 'Teenage Dirtbag', artists: ['Wheatus'], year: 2000, isrc: 'USSM10008431', cover: null };
+    const expected = { id: '4cOdK2wGLETKBW3PvgPWqT', title: 'Teenage Dirtbag', artists: ['Wheatus'], year: 2000, isrc: 'USSM10008431', cover: null, album: '', albumType: '' };
     expect(trackOf(entry(song))).toEqual(expected);
     expect(trackOf({ track: song })).toEqual(expected);
     expect(trackOf({ item: song })).toEqual(expected);
@@ -42,6 +42,11 @@ describe('Tracks lesen', () => {
     expect(trackOf(entry({ ...song, artists: [] }))).toBeNull();
     expect(trackOf(entry(null))).toBeNull();
     expect(trackOf(null)).toBeNull();
+  });
+
+  it('liest Albumname und -art', () => {
+    const t = trackOf(entry({ ...song, album: { name: 'Greatest Hits (Remastered)', album_type: 'compilation', release_date: '2011' } }));
+    expect(t).toMatchObject({ album: 'Greatest Hits (Remastered)', albumType: 'compilation', year: 2011 });
   });
 
   it('kommt mit fehlenden Feldern zurecht', () => {

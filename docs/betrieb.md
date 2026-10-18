@@ -39,7 +39,7 @@ Hitster liest Playlists aus Spotify und startet die Songs auf einem Spotify-Ger�
 
 Wer am Live-Tisch nur mitspielt, muss sich nicht anmelden: Es genügt, wenn ein Gerät den Stapel lädt und ein Gerät die Musik abspielt.
 
-**Jahre.** Spotify nennt oft das Jahr des Albums, bei Sammlern und Neuauflagen also nicht das Original. Deshalb fragt der Browser beim Prüfen die freie Datenbank [MusicBrainz](https://musicbrainz.org) nach dem frühesten Erscheinungsjahr. Das Ergebnis speichert der Block in den Einstellungen des Nutzers, jeder Song wird nur einmal gesucht. MusicBrainz erlaubt etwa eine Anfrage pro Sekunde, eine Playlist mit 100 Songs braucht deshalb gut zwei Minuten. Die Prüfung läuft im Hintergrund, man kann schon vorher spielen.
+**Jahre.** Spotify nennt oft das Jahr des Albums, bei Sammlern und Neuauflagen also nicht das Original. Deshalb fragt der Browser beim Prüfen die freie Datenbank [MusicBrainz](https://musicbrainz.org) nach dem frühesten Erscheinungsjahr. Das Ergebnis speichert der Block in den Einstellungen des Nutzers, jeder Song wird nur einmal gesucht. MusicBrainz erlaubt etwa eine Anfrage pro Sekunde, parallele Anfragen helfen deshalb nicht. Der Block fragt darum in zwei Stufen: Zuerst je 20 Songs gebündelt über ihre ISRC (eine Anfrage für alle 20), dann einzeln nach Titel und Interpret nur dort, wo das Albumjahr falsch sein kann (Remaster, Sammler, „Best of“, Deluxe) oder die ISRC nichts ergab. Die Prüfung läuft im Hintergrund, man kann schon vorher spielen.
 
 ## Daten und Backups
 

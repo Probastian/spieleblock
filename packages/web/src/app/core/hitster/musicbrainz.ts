@@ -4,6 +4,8 @@ import type { SpotifyTrack } from '../spotify/spotify.util';
 const ENDPOINT = 'https://musicbrainz.org/ws/2/recording';
 const TIMEOUT_MS = 12_000;
 const RETRY_WAIT_MS = [3000, 6000, 12_000, 24_000];
+/** So viele ISRCs in einer Anfrage. Zu jeder gibt es nur wenige Aufnahmen, die Antwort (höchstens 100 Treffer) reicht dafür. */
+export const ISRC_BATCH = 20;
 
 /** MusicBrainz ist nicht erreichbar oder lehnt dauerhaft ab (nicht: kein Treffer). */
 export class MusicBrainzDown extends Error {}
@@ -35,15 +37,24 @@ async function search(query: string, signal?: AbortSignal): Promise<hitster.MbRe
 }
 
 /**
- * Frühestes Erscheinungsjahr eines Songs laut MusicBrainz, oder `null` ohne passenden Treffer.
- * Erst Titel und Interpret, bei Misserfolg die ISRC des Spotify-Tracks. `pause` hält den Abstand zwischen den Anfragen ein.
+ * Schnelle Stufe: das früheste Erscheinungsjahr der Aufnahme je ISRC, viele Songs in einer Anfrage.
+ * Songs ohne Ergebnis fehlen in der Antwort.
  */
-export async function lookupYear(track: SpotifyTrack, pause: () => Promise<void>, signal?: AbortSignal): Promise<hitster.MbYear | null> {
-  const artist = track.artists[0] ?? '';
-  const byName = hitster.pickMbYear(track.title, track.artists, await search(hitster.buildQuery(track.title, artist), signal));
-  if (byName) return byName;
-  const isrcQuery = hitster.buildIsrcQuery(track.isrc);
-  if (!isrcQuery) return null;
-  await pause();
-  return hitster.pickMbYear(track.title, track.artists, await search(isrcQuery, signal));
+export async function lookupIsrcBatch(tracks: readonly SpotifyTrack[], signal?: AbortSignal): Promise<Map<string, hitster.MbYear>> {
+  const found = new Map<string, hitster.MbYear>();
+  const query = hitster.buildIsrcBatchQuery(tracks.map(t => t.isrc));
+  if (!query) return found;
+  const recordings = await search(query, signal);
+  for (const t of tracks) {
+    const code = hitster.normIsrc(t.isrc);
+    const year = code ? hitster.pickMbYearByIsrc(code, recordings) : null;
+    if (code && year) found.set(code, year);
+  }
+  return found;
+}
+
+/** Genaue Stufe: Suche nach Titel und Interpret. Findet auch das Original, wenn Spotify eine Neuauflage nennt, braucht aber eine Anfrage je Song. */
+export async function lookupYear(track: SpotifyTrack, signal?: AbortSignal): Promise<hitster.MbYear | null> {
+  const recordings = await search(hitster.buildQuery(track.title, track.artists[0] ?? ''), signal);
+  return hitster.pickMbYear(track.title, track.artists, recordings);
 }

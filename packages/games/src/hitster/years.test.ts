@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildIsrcQuery, buildQuery, cleanTitle, norm, pickMbYear, resolveYear, type MbRecording } from './years';
+import { buildIsrcBatchQuery, buildQuery, earliest, needsOriginalCheck, normIsrc, pickMbYearByIsrc, cleanTitle, norm, pickMbYear, resolveYear, type MbRecording } from './years';
 
 const rec = (title: string, date: string | undefined, artist = 'Queen', score = 100): MbRecording => ({ title, score, 'first-release-date': date, 'artist-credit': [{ name: artist }] });
 
@@ -26,11 +26,55 @@ describe('Titel bereinigen', () => {
   });
 });
 
-describe('ISRC-Rückfall', () => {
-  it('baut die Anfrage nur für gültige Codes', () => {
-    expect(buildIsrcQuery('ussm10008431')).toBe('isrc:USSM10008431 AND firstreleasedate:[1900-01-01 TO 2100-12-31]');
-    expect(buildIsrcQuery('kaputt')).toBeNull();
-    expect(buildIsrcQuery(null)).toBeNull();
+describe('ISRC-Abfrage für viele Songs', () => {
+  it('baut eine Anfrage aus allen gültigen ISRCs, ohne Doppelte', () => {
+    const q = buildIsrcBatchQuery(['ussm10008431', 'GBCEL0300192', 'USSM10008431', 'kaputt', null]);
+    expect(q).toBe('(isrc:USSM10008431 OR isrc:GBCEL0300192) AND firstreleasedate:[1900-01-01 TO 2100-12-31]');
+    expect(buildIsrcBatchQuery(['kaputt', null])).toBeNull();
+    expect(buildIsrcBatchQuery([])).toBeNull();
+    expect(normIsrc(' gbcel0300192 ')).toBe('GBCEL0300192');
+    expect(normIsrc('zu kurz')).toBeNull();
+  });
+
+  const withIsrc = (isrc: string, date: string | undefined): MbRecording => ({ title: 'x', score: 100, 'first-release-date': date, isrcs: [{ id: isrc }] });
+
+  it('ordnet Treffer über die ISRC zu und nimmt das früheste Jahr', () => {
+    const list = [withIsrc('USSM10008431', '2000-09-29'), withIsrc('USSM10008431', '2004'), withIsrc('GBCEL0300192', '2003-10-20'), withIsrc('USSM10008431', undefined)];
+    expect(pickMbYearByIsrc('ussm10008431', list)).toEqual({ year: 2000, support: 1 });
+    expect(pickMbYearByIsrc('GBCEL0300192', list)).toEqual({ year: 2003, support: 1 });
+    expect(pickMbYearByIsrc('USRC10800300', list)).toBeNull();
+    expect(pickMbYearByIsrc(null, list)).toBeNull();
+    expect(pickMbYearByIsrc('USSM10008431', [withIsrc('USSM10008431', '1800')])).toBeNull();
+  });
+
+  it('wählt das frühere von zwei Fundstellen', () => {
+    expect(earliest({ year: 1990, support: 2 }, { year: 1985, support: 1 })).toEqual({ year: 1985, support: 1 });
+    expect(earliest({ year: 1980, support: 2 }, { year: 1985, support: 1 })).toEqual({ year: 1980, support: 2 });
+    expect(earliest(null, { year: 1985, support: 1 })).toEqual({ year: 1985, support: 1 });
+    expect(earliest(null, null)).toBeNull();
+  });
+});
+
+describe('Verdächtige Alben', () => {
+  const track = (album: string, albumType = 'album', title = 'Song') => ({ title, album, albumType });
+
+  it('erkennt Neuauflagen und Sammler, bei denen das Albumjahr vom Original abweichen kann', () => {
+    expect(needsOriginalCheck(track('Greatest Hits'))).toBe(true);
+    expect(needsOriginalCheck(track('The Best Of 1980-1990'))).toBe(true);
+    expect(needsOriginalCheck(track('Nevermind (Deluxe Edition)'))).toBe(true);
+    expect(needsOriginalCheck(track('Rumours (Remastered)'))).toBe(true);
+    expect(needsOriginalCheck(track('Irgendwas', 'compilation'))).toBe(true);
+    expect(needsOriginalCheck(track('Bravo Hits 42'))).toBe(true);
+    expect(needsOriginalCheck(track('Gold'))).toBe(true);
+    expect(needsOriginalCheck(track('Abbey Road', 'album', 'Come Together - 2019 Mix'))).toBe(false); // der Titel allein zählt nur bei bekannten Wörtern
+    expect(needsOriginalCheck(track('Abbey Road', 'album', 'Something - Remastered 2009'))).toBe(true);
+  });
+
+  it('lässt gewöhnliche Alben und Singles durch', () => {
+    expect(needsOriginalCheck(track('Nevermind'))).toBe(false);
+    expect(needsOriginalCheck(track('Hot Fuss'))).toBe(false);
+    expect(needsOriginalCheck(track('Take Me Out', 'single'))).toBe(false);
+    expect(needsOriginalCheck(track('Crazy World'))).toBe(false);
   });
 });
 

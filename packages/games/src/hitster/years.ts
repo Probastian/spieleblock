@@ -5,6 +5,7 @@ export interface MbRecording {
   title?: string;
   score?: number;
   'first-release-date'?: string;
+  isrcs?: { id?: string }[];
   'artist-credit'?: { name?: string; artist?: { name?: string } }[];
 }
 
@@ -48,10 +49,49 @@ export function buildQuery(title: string, artist: string): string {
   return `recording:"${clean(cleanTitle(title))}" AND artist:"${clean(artist)}" AND firstreleasedate:[1900-01-01 TO 2100-12-31]`;
 }
 
-/** Rückfall, wenn Titel und Interpret nichts finden: die Aufnahme-Kennung (ISRC) des Spotify-Tracks. */
-export function buildIsrcQuery(isrc: string | null): string | null {
+export const normIsrc = (isrc: string | null | undefined): string | null => {
   const code = (isrc ?? '').trim().toUpperCase();
-  return /^[A-Z0-9]{12}$/.test(code) ? `isrc:${code} AND firstreleasedate:[1900-01-01 TO 2100-12-31]` : null;
+  return /^[A-Z0-9]{12}$/.test(code) ? code : null;
+};
+
+/**
+ * Eine Anfrage für viele Songs: Zu einer ISRC gibt es nur wenige Aufnahmen, deshalb passen auch 20 in eine Antwort
+ * (die Suche liefert höchstens 100 Treffer). Mit Titel und Interpret ginge das nicht, da verdrängen beliebte Songs alle anderen.
+ */
+export function buildIsrcBatchQuery(isrcs: readonly (string | null)[]): string | null {
+  const codes = [...new Set(isrcs.map(normIsrc).filter((c): c is string => !!c))];
+  return codes.length ? `(${codes.map(c => `isrc:${c}`).join(' OR ')}) AND firstreleasedate:[1900-01-01 TO 2100-12-31]` : null;
+}
+
+/** Frühestes Erscheinungsjahr der Aufnahmen mit dieser ISRC. Für Songs, deren Aufnahme als Neuauflage unter anderer ISRC läuft, findet das nicht das Original. */
+export function pickMbYearByIsrc(isrc: string | null, recordings: readonly MbRecording[]): MbYear | null {
+  const code = normIsrc(isrc);
+  if (!code) return null;
+  const years: number[] = [];
+  for (const r of recordings) {
+    if (!(r.isrcs ?? []).some(i => (i.id ?? '').toUpperCase() === code)) continue;
+    const year = parseInt((r['first-release-date'] ?? '').slice(0, 4), 10);
+    if (year >= MIN_YEAR && year <= maxYear()) years.push(year);
+  }
+  if (!years.length) return null;
+  const year = Math.min(...years);
+  return { year, support: years.filter(y => y === year).length };
+}
+
+const REISSUE_WORDS = /(remaster|re-?issue|best of|greatest|hits|collection|anthology|essential|gold|deluxe|anniversary|edition|\blive\b|sampler|ultimate|platinum|classics|legends|singles|the very best|now that|\d{4} version|bonus|expanded|mono|stereo|unplugged|acoustic|karaoke|cover|tribute)/i;
+
+/**
+ * Sieht das Album nach einer Neuauflage oder Zusammenstellung aus? Dann kann das Albumjahr vom Original abweichen,
+ * und wir fragen genauer nach (Titel und Interpret), statt der schnellen ISRC-Abfrage zu trauen.
+ */
+export function needsOriginalCheck(track: { title: string; album: string; albumType: string }): boolean {
+  return track.albumType === 'compilation' || REISSUE_WORDS.test(track.album) || REISSUE_WORDS.test(track.title);
+}
+
+/** Aus zwei Fundstellen das frühere Jahr; die Zahl der stützenden Treffer stammt von der gewählten. */
+export function earliest(a: MbYear | null, b: MbYear | null): MbYear | null {
+  if (!a || !b) return a ?? b;
+  return b.year < a.year ? b : a;
 }
 
 /**

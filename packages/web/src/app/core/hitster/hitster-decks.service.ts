@@ -3,11 +3,11 @@ import { hitster } from '@spieleblock/games';
 import { SpotifyApi, SpotifyError, type LoadedPlaylist } from '../spotify/spotify-api.service';
 import { artistLine, duplicateKey, type SpotifyTrack } from '../spotify/spotify.util';
 import { Store } from '../state/store.service';
-import { MusicBrainzDown, lookupYear } from './musicbrainz';
+import { ISRC_BATCH, MusicBrainzDown, lookupIsrcBatch, lookupYear } from './musicbrainz';
 
 type Options = hitster.HitsterOptions;
 
-const REQUEST_GAP_MS = 1300;
+const REQUEST_GAP_MS = 1100;
 const SAVE_EVERY = 8;
 const CACHE_MS = 5 * 60_000;
 /** So viele Songs hintereinander ohne Antwort von MusicBrainz, dann pausiert die Prüfung. */
@@ -110,7 +110,14 @@ export class HitsterDecks {
   }
 
   // ------------------------------------------------------------ Jahresprüfung
-  /** Prüft alle Songs der Playlist ohne bekannte Jahre bei MusicBrainz. Läuft im Hintergrund, bis fertig oder abgebrochen. */
+  /**
+   * Prüft alle Songs der Playlist ohne bekannte Jahre bei MusicBrainz. Läuft im Hintergrund, bis fertig oder abgebrochen.
+   *
+   * Zwei Stufen, weil MusicBrainz nur etwa eine Anfrage pro Sekunde erlaubt:
+   * 1. schnell: je 20 Songs in einer Anfrage über ihre ISRC,
+   * 2. genau: einzeln nach Titel und Interpret, aber nur für Songs, bei denen das Albumjahr falsch sein kann
+   *    (Remaster, Sammler, Neuauflage) oder die ISRC nichts ergab.
+   */
   async checkYears(playlist: LoadedPlaylist): Promise<void> {
     if (this.check()?.state === 'running') return;
     const todo = playlist.tracks.filter(t => !this.years()[t.id]);
@@ -129,28 +136,57 @@ export class HitsterDecks {
       if (Object.keys(pending).length) this.writeYears(pending);
       pending = {};
     };
+    const finish = (t: SpotifyTrack, mb: hitster.MbYear | null) => {
+      const entry = hitster.resolveYear(t.year, mb);
+      if (entry) pending[t.id] = entry;
+      done++;
+    };
     let last = 0;
     const pause = async () => {
       const wait = last + REQUEST_GAP_MS - Date.now();
       if (wait > 0) await new Promise(r => setTimeout(r, wait));
       last = Date.now();
+      if (signal.aborted) throw new DOMException('abgebrochen', 'AbortError');
+    };
+    /** Ein Fehlschlag von MusicBrainz überspringt den Schritt; nach mehreren hintereinander pausiert die Prüfung. */
+    const guarded = async <T>(fn: () => Promise<T>): Promise<T | undefined> => {
+      try {
+        const r = await fn();
+        failures = 0;
+        return r;
+      } catch (e) {
+        if (!(e instanceof MusicBrainzDown) || ++failures >= MAX_FAILURES) throw e;
+        return undefined;
+      }
     };
 
     set('running');
     try {
-      for (const t of todo) {
+      // Stufe 1: viele Songs je Anfrage
+      const byIsrc = new Map<string, hitster.MbYear>();
+      const withIsrc = todo.filter(t => hitster.normIsrc(t.isrc));
+      for (let i = 0; i < withIsrc.length; i += ISRC_BATCH) {
         await pause();
-        if (signal.aborted) throw new DOMException('abgebrochen', 'AbortError');
-        try {
-          const mb = await lookupYear(t, pause, signal);
-          const entry = hitster.resolveYear(t.year, mb);
-          if (entry) pending[t.id] = entry;
-          failures = 0;
-        } catch (e) {
-          if (!(e instanceof MusicBrainzDown) || ++failures >= MAX_FAILURES) throw e;
-          continue; // diesen Song überspringen, später nochmal versuchen
-        }
-        done++;
+        const found = await guarded(() => lookupIsrcBatch(withIsrc.slice(i, i + ISRC_BATCH), signal));
+        for (const [code, y] of found ?? []) byIsrc.set(code, y);
+      }
+
+      // Wem trauen wir der schnellen Antwort? Nur Songs von gewöhnlichen Alben mit Treffer.
+      const exact: SpotifyTrack[] = [];
+      for (const t of todo) {
+        const quick = byIsrc.get(hitster.normIsrc(t.isrc) ?? '') ?? null;
+        if (quick && !hitster.needsOriginalCheck(t)) finish(t, quick);
+        else exact.push(t);
+      }
+      flush();
+      set('running');
+
+      // Stufe 2: einzeln, nur wo es nötig ist
+      for (const t of exact) {
+        await pause();
+        const byName = await guarded(() => lookupYear(t, signal));
+        if (byName === undefined) continue; // MusicBrainz war nicht erreichbar: später nochmal
+        finish(t, hitster.earliest(byName, byIsrc.get(hitster.normIsrc(t.isrc) ?? '') ?? null));
         if (done % SAVE_EVERY === 0) flush();
         set('running');
       }
