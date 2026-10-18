@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { SpotifyAuth } from './spotify-auth.service';
-import { describeSpotifyError, parsePlaylistId, playlistHitOf, trackOf, type PlaylistHit, type SpotifyErrorKind, type SpotifyTrack } from './spotify.util';
+import { describeSpotifyError, parsePlaylistId, playlistHitOf, playlistImageOf, trackOf, type PlaylistHit, type SpotifyErrorKind, type SpotifyTrack } from './spotify.util';
 
 const API = 'https://api.spotify.com/v1';
 const PAGE = 50;
@@ -32,6 +32,8 @@ export interface LoadedPlaylist {
   skipped: number;
   /** Mehr Einträge, als wir lesen. */
   truncated: boolean;
+  owner: string;
+  image: string | null;
 }
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
@@ -76,7 +78,7 @@ export class SpotifyApi {
     const id = parsePlaylistId(input);
     if (!id) throw new SpotifyError('notfound', 'Das sieht nicht nach einer Spotify-Playlist aus. Füge den Link zur Playlist ein.');
 
-    const head = await this.request<{ name?: string }>('GET', `/playlists/${id}?fields=name`);
+    const head = await this.playlistHead(id);
     const tracks: SpotifyTrack[] = [];
     let skipped = 0;
     let total = 0;
@@ -92,7 +94,22 @@ export class SpotifyApi {
       onProgress?.(Math.min(total, (page + 1) * PAGE), total);
       if (!data?.next || !items.length) break;
     }
-    return { id, name: head?.name?.slice(0, 80) || 'Playlist', tracks, skipped, truncated: total > MAX_PAGES * PAGE };
+    return { id, name: head?.name?.slice(0, 80) || 'Playlist', tracks, skipped, truncated: total > MAX_PAGES * PAGE, owner: head?.owner ?? '', image: head?.image ?? null };
+  }
+
+  private async playlistHead(id: string): Promise<{ name: string; owner: string; image: string | null; total: number | null } | null> {
+    const h = await this.request<Record<string, any>>('GET', `/playlists/${id}?fields=name,images,owner(display_name),tracks.total,items.total`);
+    if (!h) return null;
+    const total = Number(h['tracks']?.['total'] ?? h['items']?.['total']);
+    return { name: String(h['name'] ?? ''), owner: String(h['owner']?.['display_name'] ?? ''), image: playlistImageOf(h['images']), total: Number.isFinite(total) ? total : null };
+  }
+
+  /** Kurzinfo zu einer Playlist (für einen eingefügten Link), ohne alle Songs zu laden. */
+  async playlistInfo(input: string): Promise<PlaylistHit> {
+    const id = parsePlaylistId(input);
+    if (!id) throw new SpotifyError('notfound', 'Das sieht nicht nach einer Spotify-Playlist aus.');
+    const h = await this.playlistHead(id);
+    return { id, name: h?.name.slice(0, 80) || 'Playlist', owner: (h?.owner ?? '').slice(0, 40), tracks: h?.total ?? null, image: h?.image ?? null };
   }
 
   /** Die eigenen und abonnierten Playlists (bis zu 150). */

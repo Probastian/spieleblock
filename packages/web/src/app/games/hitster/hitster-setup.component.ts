@@ -3,8 +3,10 @@ import type { hitster } from '@spieleblock/games';
 import { HitsterDecks } from '../../core/hitster/hitster-decks.service';
 import { SheetService } from '../../core/ui/sheet.service';
 import { SpotifyApi } from '../../core/spotify/spotify-api.service';
+import { ToastService } from '../../core/ui/toast.service';
 import { SpotifyAuth } from '../../core/spotify/spotify-auth.service';
-import type { PlaylistHit } from '../../core/spotify/spotify.util';
+import { parsePlaylistId, type PlaylistHit } from '../../core/spotify/spotify.util';
+import { HitsterPlaylistRow, type PlaylistRow } from './hitster-playlist-row.component';
 import { inputValue } from '../../shared/dom';
 import { HitsterPlayback } from './hitster-playback.component';
 import { DeckSheet } from './deck.sheet';
@@ -23,86 +25,89 @@ const VETO_COSTS = [0, 1, 2, 3];
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   styleUrl: './hitster.css',
-  imports: [HitsterPlayback],
+  imports: [HitsterPlayback, HitsterPlaylistRow],
   template: `
     <section class="card" aria-labelledby="hS">
       <h2 class="lbl" id="hS">Spotify</h2>
       <sb-hitster-playback returnTo="/neu/hitster" />
     </section>
 
+
     @if (auth.loggedIn()) {
       <section class="card" aria-labelledby="hD">
         <h2 class="lbl" id="hD">Playlist</h2>
-        @if (decks.decks().length) {
-          <div class="variants">
-            @for (d of decks.decks(); track d.id) {
-              <button class="vopt" type="button" [attr.aria-pressed]="options().source?.id === d.id" (click)="decks.select(d.id)">
-                <span class="vname">{{ d.name }}</span><span class="vdesc">{{ d.count }} Songs</span>
-              </button>
-            }
-          </div>
-        }
-        <form class="addrow" autocomplete="off" (submit)="add($event)">
-          <input class="pin" name="playlist" type="text" inputmode="url" placeholder="Link zur Spotify-Playlist" aria-label="Link zur Spotify-Playlist" [value]="link()" (input)="link.set(inputValue($event))" />
-          <button class="btn" type="submit" [disabled]="busy() || !link().trim()">{{ busy() ? 'Lese …' : 'Hinzufügen' }}</button>
-        </form>
-        @if (message(); as m) {
-          <p class="ht-err" role="alert">{{ m }}</p>
-        }
-        <div class="ht-opt">
-          <h3>Playlist suchen</h3>
-          <div class="chips" style="margin-top: 0">
-            <button type="button" class="chip txt" [attr.aria-pressed]="scope() === 'mine'" (click)="setScope('mine')">Meine</button>
-            <button type="button" class="chip txt" [attr.aria-pressed]="scope() === 'global'" (click)="setScope('global')">Alle auf Spotify</button>
-          </div>
-          <form class="addrow" autocomplete="off" (submit)="search($event)">
-            <input class="pin" name="q" type="search" [placeholder]="scope() === 'mine' ? 'In meinen Playlists filtern' : 'Suchbegriff, z. B. 90er Hits'" aria-label="Playlist suchen" [value]="query()" (input)="query.set(inputValue($event))" />
-            @if (scope() === 'global') {
-              <button class="btn" type="submit" [disabled]="searching() || query().trim().length < 2">{{ searching() ? 'Suche …' : 'Suchen' }}</button>
-            }
-          </form>
-          @if (searchError()) {
-            <p class="ht-err" role="alert">{{ searchError() }}</p>
-          }
-          @if (shownHits().length) {
-            <ul class="ht-dev">
-              @for (h of shownHits(); track h.id) {
-                <li><button type="button" [disabled]="busy()" (click)="addId(h.id)"><span class="ht-pl" [style.background-image]="h.image ? 'url(&quot;' + h.image + '&quot;)' : null" aria-hidden="true"></span><span class="ht-plt"><b>{{ h.name }}</b><small>{{ h.owner }}{{ h.tracks !== null ? ' · ' + h.tracks + ' Songs' : '' }}</small></span></button></li>
-              }
-            </ul>
-          } @else if (searched() && !searching() && !searchError()) {
-            <p class="note" style="margin: 0">Nichts gefunden.</p>
-          }
-        </div>
-        <p class="note" style="margin: 0">In Spotify: Playlist öffnen, „Teilen“, „Link kopieren“. Auch private und gemeinsame Playlists gehen. Mindestens {{ playerCount() + 5 }} Songs braucht ein Spiel mit {{ playerCount() }} {{ playerCount() === 1 ? 'Spieler' : 'Spielern' }}.</p>
 
-        @if (selected(); as d) {
-          <div class="ht-opt">
-            <h3>Jahre prüfen</h3>
-            @if (check(); as c) {
-              <div class="ht-bar" role="progressbar" [attr.aria-valuenow]="c.done" [attr.aria-valuemax]="c.total"><i [style.width.%]="c.total ? (c.done / c.total) * 100 : 100"></i></div>
-              <p>
-                @switch (c.state) {
-                  @case ('running') { {{ c.done }} von {{ c.total }} geprüft. Das dauert etwa {{ minutes(c.total - c.done) }}, du kannst schon spielen. }
-                  @case ('done') { Alle Songs sind geprüft. }
-                  @case ('down') { MusicBrainz antwortet gerade nicht. {{ c.done }} von {{ c.total }} sind geprüft, der Rest läuft mit dem Spotify-Jahr. }
-                  @case ('stopped') { Angehalten bei {{ c.done }} von {{ c.total }}. }
-                }
-              </p>
-            } @else {
-              <p>Spotify nennt oft das Jahr des Albums, nicht das des Originals (Sampler, Neuauflagen). Der Block gleicht die Jahre deshalb mit der freien Musikdatenbank MusicBrainz ab.</p>
-            }
-            <div class="ht-ctrls">
-              @if (check()?.state === 'running') {
-                <button class="btn sm" type="button" (click)="decks.stopCheck()">Anhalten</button>
+        @if (selectedRow(); as sel) {
+          <div class="ht-sel">
+            <sb-ht-plrow [item]="sel" [selected]="true" [removable]="true" (remove)="removeDeck(sel.id)" (pick)="openDeck(sel.id)" />
+            <div class="ht-selbar">
+              @if (check(); as c) {
+                <div class="ht-bar" role="progressbar" [attr.aria-valuenow]="c.done" [attr.aria-valuemax]="c.total"><i [style.width.%]="c.total ? (c.done / c.total) * 100 : 100"></i></div>
+                <span class="ht-selt">{{ checkText(c) }}</span>
               } @else {
-                <button class="btn sm" type="button" (click)="startCheck()">{{ check() ? 'Weiter prüfen' : 'Jahre prüfen' }}</button>
+                <span class="ht-selt">Jahre noch nicht geprüft</span>
               }
-              <button class="btn sm" type="button" (click)="openDeck(d.id)">Songs ansehen</button>
-              <button class="link" type="button" (click)="decks.remove(d.id)">Playlist entfernen</button>
+              <span class="ht-ctrls">
+                @if (check()?.state === 'running') {
+                  <button class="btn sm" type="button" (click)="decks.stopCheck()">Anhalten</button>
+                } @else {
+                  <button class="btn sm" type="button" (click)="startCheck()">{{ check() ? 'Weiter prüfen' : 'Jahre prüfen' }}</button>
+                }
+                <button class="btn sm" type="button" (click)="openDeck(sel.id)">Songs ansehen</button>
+              </span>
             </div>
           </div>
         }
+
+        <div class="ht-search">
+          <input class="pin" type="search" name="q" autocomplete="off" placeholder="Playlist suchen oder Link einfügen" aria-label="Playlist suchen oder Link einfügen" [value]="query()" (input)="query.set(inputValue($event))" />
+          @if (query()) {
+            <button class="ht-clear" type="button" aria-label="Eingabe löschen" (click)="query.set('')">×</button>
+          }
+        </div>
+        @if (message() || searchError(); as m) {
+          <p class="ht-err" role="alert">{{ m }}</p>
+        }
+
+        <div class="ht-plist" role="list">
+          @if (linkId()) {
+            @if (linkState(); as ls) {
+              @if (ls === 'loading') {
+                <p class="ht-ph">Link wird gelesen …</p>
+              } @else if (ls === 'error') {
+                <p class="ht-ph">Diese Playlist ließ sich nicht lesen. Ist der Link richtig und die Playlist öffentlich oder gehört sie dir?</p>
+              } @else {
+                <h3 class="ht-ph">Link</h3>
+                <sb-ht-plrow [item]="ls" [busy]="busy()" (pick)="choose(ls, false)" />
+              }
+            }
+          } @else {
+            @if (libRows().length) {
+              <h3 class="ht-ph">Zuletzt verwendet</h3>
+              @for (r of libRows(); track r.id) {
+                <sb-ht-plrow [item]="r" [removable]="true" (pick)="choose(r, true)" (remove)="removeDeck(r.id)" />
+              }
+            }
+            @if (mineRows().length) {
+              <h3 class="ht-ph">Meine Playlists</h3>
+              @for (r of mineRows(); track r.id) {
+                <sb-ht-plrow [item]="r" [busy]="busy()" (pick)="choose(r, false)" />
+              }
+            }
+            @if (foundRows().length) {
+              <h3 class="ht-ph">Auf Spotify</h3>
+              @for (r of foundRows(); track r.id) {
+                <sb-ht-plrow [item]="r" [busy]="busy()" (pick)="choose(r, false)" />
+              }
+            }
+            @if (searching()) {
+              <p class="ht-ph">Suche …</p>
+            } @else if (!libRows().length && !mineRows().length && !foundRows().length && !selectedRow()) {
+              <p class="ht-ph">{{ query().trim().length >= 2 ? 'Nichts gefunden.' : 'Noch keine Playlists. Such oben oder füge einen Link ein.' }}</p>
+            }
+          }
+        </div>
+        <p class="note" style="margin: 0">Ein Spiel braucht mindestens {{ playerCount() + 5 }} Songs. Auch private und gemeinsame Playlists gehen. Spotify nennt oft das Albumjahr, nicht das des Originals; der Block gleicht es deshalb mit MusicBrainz ab.</p>
       </section>
     }
 
@@ -170,6 +175,7 @@ export class HitsterSetup {
   private readonly store = inject(Store);
   private readonly sheets = inject(SheetService);
   private readonly api = inject(SpotifyApi);
+  private readonly toasts = inject(ToastService);
 
   protected readonly goals = GOALS;
   protected readonly tokens = [0, 1, 2, 3, 5];
@@ -185,36 +191,98 @@ export class HitsterSetup {
     const c = this.decks.check();
     return c && c.playlistId === this.selected()?.id ? c : null;
   });
-  protected readonly link = signal('');
   protected readonly busy = signal(false);
   protected readonly message = signal('');
 
-  protected readonly scope = signal<'mine' | 'global'>('mine');
+  // ------------------------------------------------------------ Suche: eine Leiste für alles
+  /** Eingabe: Suchbegriff oder Link. */
   protected readonly query = signal('');
-  protected readonly hits = signal<PlaylistHit[]>([]);
+  protected readonly mine = signal<PlaylistHit[]>([]);
+  private readonly found = signal<PlaylistHit[]>([]);
   protected readonly searching = signal(false);
-  protected readonly searched = signal(false);
   protected readonly searchError = signal('');
+  protected readonly linkState = signal<PlaylistRow | 'loading' | 'error' | null>(null);
   private mineLoaded = false;
-  /** „Meine“ filtert lokal beim Tippen, „Alle“ zeigt das Ergebnis der letzten Suche. */
-  protected readonly shownHits = computed(() => {
-    const q = this.query().trim().toLowerCase();
-    return this.scope() === 'mine' && q ? this.hits().filter(h => h.name.toLowerCase().includes(q)) : this.hits();
+  /** Je ein Zähler für Suche und Link, damit veraltete Antworten verworfen werden, ohne sich gegenseitig zu stören. */
+  private seqText = 0;
+  private seqLink = 0;
+
+  /** Ein eingefügter Link (oder eine nackte Playlist-ID von 22 Zeichen) statt eines Suchbegriffs. */
+  protected readonly linkId = computed(() => {
+    const q = this.query().trim();
+    return /spotify/i.test(q) || /^[A-Za-z0-9]{22}$/.test(q) ? parsePlaylistId(q) : null;
+  });
+  private readonly text = computed(() => (this.linkId() ? '' : this.query().trim().toLowerCase()));
+
+  private readonly mineImage = computed(() => new Map(this.mine().map(h => [h.id, h.image] as [string, string | null])));
+  private readonly known = computed(() => new Set([...this.decks.decks().map(d => d.id), ...(this.selected() ? [this.selected()!.id] : [])]));
+  private static row(h: PlaylistHit): PlaylistRow {
+    return { id: h.id, name: h.name, image: h.image, sub: h.owner + (h.tracks !== null ? (h.owner ? ' · ' : '') + h.tracks + ' Songs' : '') };
+  }
+
+  /** Die gewählte Playlist, mit Titelbild aus der Bibliothek oder den eigenen Playlists. */
+  protected readonly selectedRow = computed<PlaylistRow | null>(() => {
+    const s = this.selected();
+    if (!s) return null;
+    const d = this.decks.decks().find(x => x.id === s.id);
+    return { id: s.id, name: s.name, sub: d ? `${d.count} Songs` : '', image: d?.image ?? this.mineImage().get(s.id) ?? null };
+  });
+  protected readonly libRows = computed<PlaylistRow[]>(() =>
+    this.decks
+      .decks()
+      .filter(d => d.id !== this.selected()?.id && (!this.text() || d.name.toLowerCase().includes(this.text())))
+      .map(d => ({ id: d.id, name: d.name, sub: `${d.count} Songs`, image: d.image ?? this.mineImage().get(d.id) ?? null })),
+  );
+  protected readonly mineRows = computed<PlaylistRow[]>(() =>
+    this.mine()
+      .filter(h => !this.known().has(h.id) && (!this.text() || h.name.toLowerCase().includes(this.text())))
+      .map(HitsterSetup.row),
+  );
+  protected readonly foundRows = computed<PlaylistRow[]>(() => {
+    const mineIds = new Set(this.mine().map(h => h.id));
+    return this.found().filter(h => !this.known().has(h.id) && !mineIds.has(h.id)).map(HitsterSetup.row);
   });
 
-  protected setScope(scope: 'mine' | 'global'): void {
-    this.scope.set(scope);
-    this.hits.set([]);
-    this.searched.set(false);
-    this.searchError.set('');
-    if (scope === 'mine') void this.loadMine();
+  constructor() {
+    // Sobald Spotify verbunden ist, die eigenen Playlists laden
+    effect(() => {
+      if (this.auth.loggedIn() && !this.mineLoaded) {
+        this.mineLoaded = true;
+        untracked(() => void this.loadMine());
+      }
+    });
+    // Suchbegriff: kurz warten, dann auf Spotify suchen (die eigenen Playlists filtern sofort)
+    effect(onCleanup => {
+      const q = this.text();
+      const my = ++this.seqText;
+      untracked(() => {
+        this.found.set([]);
+        this.searchError.set('');
+      });
+      if (q.length < 2) return;
+      const timer = setTimeout(() => void this.searchGlobal(q, my), 500);
+      onCleanup(() => clearTimeout(timer));
+    });
+    // Link: Name und Titelbild nachladen, damit er wie jede andere Playlist aussieht
+    effect(onCleanup => {
+      const id = this.linkId();
+      const my = ++this.seqLink;
+      untracked(() => this.linkState.set(id ? 'loading' : null));
+      if (!id) return;
+      const timer = setTimeout(() => {
+        this.api.playlistInfo(id).then(
+          h => my === this.seqLink && this.linkState.set(HitsterSetup.row(h)),
+          () => my === this.seqLink && this.linkState.set('error'),
+        );
+      }, 300);
+      onCleanup(() => clearTimeout(timer));
+    });
   }
 
   private async loadMine(): Promise<void> {
     this.searching.set(true);
     try {
-      this.hits.set(await this.api.myPlaylists());
-      this.searched.set(true);
+      this.mine.set(await this.api.myPlaylists());
     } catch (e) {
       this.searchError.set(this.decks.errorText(e));
     } finally {
@@ -222,41 +290,39 @@ export class HitsterSetup {
     }
   }
 
-  protected async search(e: Event): Promise<void> {
-    e.preventDefault();
-    if (this.scope() === 'mine' || this.searching()) return;
+  private async searchGlobal(q: string, my: number): Promise<void> {
     this.searching.set(true);
-    this.searchError.set('');
     try {
-      this.hits.set(await this.api.searchPlaylists(this.query()));
-      this.searched.set(true);
-    } catch (err) {
-      this.searchError.set(this.decks.errorText(err));
+      const hits = await this.api.searchPlaylists(q);
+      if (my === this.seqText) this.found.set(hits);
+    } catch (e) {
+      if (my === this.seqText) this.searchError.set(this.decks.errorText(e));
     } finally {
-      this.searching.set(false);
+      if (my === this.seqText) this.searching.set(false);
     }
-  }
-
-  constructor() {
-    // „Meine“ ist vorgewählt: sobald Spotify verbunden ist, die eigenen Playlists laden
-    effect(() => {
-      if (this.auth.loggedIn() && !this.mineLoaded) {
-        this.mineLoaded = true;
-        untracked(() => void this.loadMine());
-      }
-    });
   }
 
   protected set(patch: Partial<Options>): void {
     this.store.setGameOptions<Options>('hitster', patch);
   }
 
-  protected add(e: Event): Promise<void> {
-    e.preventDefault();
-    return this.addId(this.link());
+  /** Tippen auf eine Zeile: Aus der Bibliothek wird sie nur gewählt, alles andere wird erst eingelesen und vorgemerkt. */
+  protected async choose(row: PlaylistRow, inLibrary: boolean): Promise<void> {
+    if (inLibrary) {
+      this.decks.select(row.id);
+      return;
+    }
+    await this.addId(row.id);
+    this.query.set('');
   }
 
-  /** Playlist per Link oder ID (aus der Eingabe oder einem Suchtreffer) einlesen und vormerken. */
+  protected removeDeck(id: string): void {
+    const name = this.decks.decks().find(d => d.id === id)?.name ?? this.selected()?.name ?? 'Playlist';
+    const removed = this.decks.remove(id);
+    if (removed) this.toasts.show(`„${name}“ entfernt`, () => this.decks.restore(removed));
+  }
+
+  /** Playlist per Link oder ID einlesen und vormerken. */
   protected async addId(input: string): Promise<void> {
     if (this.busy()) return;
     this.busy.set(true);
@@ -264,7 +330,6 @@ export class HitsterSetup {
     try {
       const playlist = await this.decks.load(input, undefined, true);
       this.decks.select(playlist.id);
-      this.link.set('');
       const cards = this.decks.cardsOf(playlist);
       if (cards.cards.length < this.playerCount() + 5) this.message.set(`Nur ${cards.cards.length} spielbare Songs in dieser Playlist. Das ist zu wenig für ein Spiel.`);
       else if (playlist.truncated) this.message.set(`Die Playlist ist sehr lang. Pro Spiel werden höchstens ${400} zufällige Songs verwendet.`);
@@ -273,6 +338,19 @@ export class HitsterSetup {
       this.message.set(this.decks.errorText(err));
     } finally {
       this.busy.set(false);
+    }
+  }
+
+  protected checkText(c: { done: number; total: number; state: string }): string {
+    switch (c.state) {
+      case 'running':
+        return `Jahre: ${c.done} von ${c.total} geprüft`;
+      case 'done':
+        return 'Alle Jahre geprüft';
+      case 'down':
+        return `MusicBrainz antwortet nicht (${c.done} von ${c.total} geprüft), der Rest gilt mit dem Spotify-Jahr`;
+      default:
+        return `Angehalten bei ${c.done} von ${c.total}`;
     }
   }
 
@@ -288,11 +366,5 @@ export class HitsterSetup {
 
   protected openDeck(id: string): void {
     this.sheets.open(DeckSheet, { tall: true, data: { id } });
-  }
-
-  protected minutes(songs: number): string {
-    // Schnelle Stufe: 20 Songs je Anfrage; genaue Stufe nur für verdächtige Alben (grob ein Drittel)
-    const m = Math.max(1, Math.round((songs * 0.5) / 60));
-    return m === 1 ? 'eine Minute' : `${m} Minuten`;
   }
 }

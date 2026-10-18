@@ -180,3 +180,32 @@
 .ht-plt{display:grid;min-width:0;line-height:1.2}
 .ht-plt b{font-weight:400;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ht-plt small{margin:0;font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ===== Playlist wählen: eine Suchleiste, überall dieselben Zeilen ===== */
+.ht-search{position:relative}
+.ht-search .pin{width:100%;padding-right:44px;box-sizing:border-box}
+.ht-clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;background:none;font-size:26px;line-height:1;color:var(--muted)}
+.ht-plist{display:grid;gap:8px;max-height:min(56vh,460px);overflow:auto;margin:0 -4px;padding:2px 4px 4px;overscroll-behavior:contain}
+.ht-ph{margin:6px 0 0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:400;color:var(--muted)}
+.ht-plist>p.ht-ph{text-transform:none;letter-spacing:0;font-size:15px}
+.ht-sel{display:grid;gap:8px}
+.ht-selbar{display:grid;gap:6px;padding:0 2px}
+.ht-selt{font-size:15px;color:var(--ink-2);line-height:1.25}
+.ht-selbar .ht-bar{height:8px}
+.ht-prow{display:flex;align-items:stretch;min-height:64px;border:2px solid var(--edge);border-radius:var(--wob-s);background:var(--sheet);overflow:hidden;transition:background-color .2s,box-shadow .2s,opacity .2s}
+.ht-prow.sel{background:var(--accent-soft);box-shadow:3px 3px 0 var(--accent)}
+.ht-prow.busy{opacity:.55}
+.ht-prow-main{display:flex;align-items:center;gap:12px;flex:1;min-width:0;padding:0 12px 0 0;border:0;background:none;color:inherit;text-align:left}
+.ht-prow-main:active{background:var(--press)}
+.ht-prow-main:focus-visible{outline:3px solid var(--focus);outline-offset:-3px}
+/* Das Titelbild ist Teil der Zeile: bündig links, quadratisch, ohne eigenen Rahmen */
+.ht-prow-img{flex:none;align-self:stretch;width:64px;min-height:64px;background:var(--chip) center/cover no-repeat}
+.ht-prow-img.noimg{display:grid;place-items:center;color:var(--muted)}
+.ht-prow-img.noimg::after{content:"♪";font-size:26px}
+.ht-prow-t{display:grid;min-width:0;line-height:1.2;flex:1}
+.ht-prow-t b{font-weight:400;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ht-prow-t small{font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ht-prow-ck{flex:none;font-family:var(--f-num);font-size:26px;font-weight:700;color:var(--good)}
+.ht-prow-x{flex:none;width:48px;border:0;border-left:2px dashed var(--line-strong);background:none;font-size:26px;line-height:1;color:var(--muted)}
+.ht-prow-x:active{background:var(--bad-soft);color:var(--bad)}
+.ht-prow-x:focus-visible{outline:3px solid var(--focus);outline-offset:-3px}

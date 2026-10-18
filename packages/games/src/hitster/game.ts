@@ -54,6 +54,8 @@ export interface DeckInfo extends DeckRef {
   count: number;
   /** Zuletzt importiert (ms). */
   at: number;
+  /** Titelbild der Playlist (nur Adressen von Spotifys Bilderservern). */
+  image?: string;
 }
 
 /** Woher ein Jahr stammt: Spotify (Albumdatum), MusicBrainz (frühestes Erscheinen) oder von Hand. */
@@ -118,8 +120,11 @@ export interface HitsterGame extends BaseGame<HitsterPlayer> {
 export const DEFAULT_RULES: HitsterRules = { goal: 10, startTokens: 2, skipCost: 1, guessReward: 1, buyCost: 3, vetoCost: 1 };
 /** Bild-IDs bei Spotify sind 40 Hex-Zeichen. */
 export const COVER_RE = /^[a-f0-9]{40}$/;
+/** Plakate bei TMDB heißen z. B. `qJ2tW6WMUDux911r6m7haRef0WH.jpg`. */
+export const POSTER_RE = /^[A-Za-z0-9_-]{8,60}\.(jpg|png|webp)$/;
 export const MAX_CARDS = 400;
 export const MAX_DECKS = 30;
+export const PLAYLIST_IMAGE_RE = /^https:\/\/[a-z0-9.-]+\.(scdn\.co|spotifycdn\.com)\/[^\s"'()<>]{1,200}$/i;
 export const MAX_YEARS = 2000;
 export const MAX_LINE = 100;
 export const MAX_TOKENS = 99;
@@ -181,7 +186,7 @@ export function normalizeDecks(raw: unknown): DeckInfo[] {
     const ref = normalizeDeckRef(d);
     if (!ref || seen.has(ref.id)) continue;
     seen.add(ref.id);
-    out.push({ ...ref, count: clampInt(d?.count, 0, 10000), at: num(d?.at) });
+    out.push({ ...ref, count: clampInt(d?.count, 0, 10000), at: num(d?.at), ...(typeof d?.image === 'string' && PLAYLIST_IMAGE_RE.test(d.image) ? { image: d.image } : {}) });
     if (out.length >= MAX_DECKS) break;
   }
   return out;

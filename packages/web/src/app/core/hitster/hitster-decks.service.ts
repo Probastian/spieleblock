@@ -60,11 +60,25 @@ export class HitsterDecks {
     return playlist;
   }
 
-  remove(id: string): void {
+  /** Nimmt eine Playlist aus der Bibliothek. Gibt sie zurück, damit sich das Entfernen rückgängig machen lässt. */
+  remove(id: string): { info: hitster.DeckInfo; wasSelected: boolean } | null {
+    const info = this.decks().find(d => d.id === id);
+    if (!info) return null;
+    const wasSelected = this.options().source?.id === id;
     this.store.updateMeta(m => {
       const o = m.settings.games['hitster'] as Options;
       o.decks = o.decks.filter(d => d.id !== id);
       if (o.source?.id === id) o.source = null;
+    });
+    return { info, wasSelected };
+  }
+
+  /** Stellt eine entfernte Playlist wieder her. */
+  restore(removed: { info: hitster.DeckInfo; wasSelected: boolean }): void {
+    this.store.updateMeta(m => {
+      const o = m.settings.games['hitster'] as Options;
+      if (!o.decks.some(d => d.id === removed.info.id)) o.decks = [removed.info, ...o.decks].slice(0, hitster.MAX_DECKS);
+      if (removed.wasSelected) o.source = { id: removed.info.id, name: removed.info.name };
     });
   }
 
@@ -208,7 +222,7 @@ export class HitsterDecks {
   private remember(p: LoadedPlaylist): void {
     this.store.updateMeta(m => {
       const o = m.settings.games['hitster'] as Options;
-      const info: hitster.DeckInfo = { id: p.id, name: p.name, count: p.tracks.length, at: Date.now() };
+      const info: hitster.DeckInfo = { id: p.id, name: p.name, count: p.tracks.length, at: Date.now(), ...(p.image && hitster.PLAYLIST_IMAGE_RE.test(p.image) ? { image: p.image } : {}) };
       o.decks = [info, ...o.decks.filter(d => d.id !== p.id)].slice(0, hitster.MAX_DECKS);
       o.source ??= { id: p.id, name: p.name };
       if (o.source.id === p.id) o.source.name = p.name;
