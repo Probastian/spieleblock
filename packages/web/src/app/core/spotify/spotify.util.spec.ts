@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coverIdOf, describeSpotifyError, parsePlaylistId, pkceChallenge, randomToken, trackOf, yearOf } from './spotify.util';
+import { playlistHitOf, coverIdOf, describeSpotifyError, parsePlaylistId, pkceChallenge, randomToken, trackOf, yearOf } from './spotify.util';
 
 describe('PKCE', () => {
   it('berechnet den Prüfwert aus der RFC-7636-Vorlage', async () => {
@@ -71,6 +71,23 @@ describe('Tracks lesen', () => {
     expect(yearOf('1999')).toBe(1999);
     expect(yearOf('0000')).toBeNull();
     expect(yearOf(undefined)).toBeNull();
+  });
+});
+
+describe('Playlist-Treffer', () => {
+  it('liest Name, Besitzer und Anzahl, auch in der neueren Fassung', () => {
+    expect(playlistHitOf({ id: '37i9dQZF1DXcBWIGoYBM5M', name: 'Hits', owner: { display_name: 'Spotify' }, tracks: { total: 50 } })).toEqual({ id: '37i9dQZF1DXcBWIGoYBM5M', name: 'Hits', owner: 'Spotify', tracks: 50, image: null });
+    const imgs = [{ url: 'https://i.scdn.co/image/big', width: 640 }, { url: 'https://i.scdn.co/image/mid', width: 300 }, { url: 'https://evil.example/x.png', width: 100 }];
+    expect(playlistHitOf({ id: '37i9dQZF1DXcBWIGoYBM5M', name: 'X', images: imgs })?.image).toBe('https://i.scdn.co/image/mid');
+    expect(playlistHitOf({ id: '37i9dQZF1DXcBWIGoYBM5M', name: 'X', images: [imgs[2]] })?.image).toBeNull();
+    expect(playlistHitOf({ id: '37i9dQZF1DXcBWIGoYBM5M', name: 'X', owner: { id: 'u1' }, items: { total: 7 } })).toMatchObject({ owner: 'u1', tracks: 7 });
+    expect(playlistHitOf({ id: '37i9dQZF1DXcBWIGoYBM5M', name: 'X' })).toMatchObject({ tracks: null });
+  });
+
+  it('verwirft gelöschte und kaputte Einträge', () => {
+    expect(playlistHitOf(null)).toBeNull();
+    expect(playlistHitOf({ id: 'kurz', name: 'X' })).toBeNull();
+    expect(playlistHitOf({ id: '37i9dQZF1DXcBWIGoYBM5M', name: '' })).toBeNull();
   });
 });
 

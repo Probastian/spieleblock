@@ -72,41 +72,41 @@ type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; to
         @for (key of [turnKey()]; track key) {
         <section class="ht-now" aria-live="polite" [style.--pc]="'var(--p' + active().color + ')'">
           <div class="ht-k">
-            <span [sbAvatar]="active()"></span>
+            <span [sbAvatar]="active()" small></span>
             <b>{{ active().name }}</b>
-            <span>{{ !c ? 'ist dran' : c.phase === 'revealed' ? 'aufgelöst' : 'Wann ist dieser Song erschienen?' }}</span>
+            <span class="ht-sub">{{ !c ? 'ist dran' : c.phase === 'revealed' ? 'aufgelöst' : c.phase === 'listen' ? 'Wann erschienen?' : 'Platz gewählt' }}</span>
+            @if (canAct() && !finished() && (!c || c.phase === 'listen')) {
+              <span class="ht-tools">
+                @if (c) {
+                  <button class="btn" type="button" [disabled]="!canSkip()" (click)="skip()">Überspringen <small class="ht-plus">−{{ g.rules.skipCost }}</small></button>
+                }
+                @if (g.rules.buyCost > 0) {
+                  <button class="btn" type="button" [disabled]="!canBuy()" (click)="buy()">Karte kaufen <small class="ht-plus">−{{ g.rules.buyCost }}</small></button>
+                }
+              </span>
+            }
           </div>
 
-          @if (!c) {
-            <p class="ht-deal">Zieh eine Karte, hör den Song und lege ihn im Zeitstrahl an die richtige Stelle.</p>
-          } @else if (c.phase !== 'revealed') {
+          @if (c && c.phase !== 'revealed') {
             <sb-ht-player [trackId]="c.card.id" />
-          } @else {
+          } @else if (c) {
             <div class="ht-result">
-              <sb-ht-card [card]="c.card" [state]="c.ok ? 'new' : 'miss'" />
+              <sb-ht-card [card]="c.card" size="s" [state]="c.ok ? 'new' : 'miss'" />
               <div class="ht-res">
                 <b class="ht-verdict" [class.ok]="c.ok">{{ verdict() }}</b>
+                <span class="ht-song">{{ c.card.title }} · {{ c.card.artist }}</span>
                 @if (canAct()) {
-                  @if (g.rules.guessReward > 0 && !c.guessed) {
-                    <button class="btn" type="button" (click)="guess()">Titel &amp; Interpret richtig <small class="ht-plus">+{{ g.rules.guessReward }}</small></button>
-                  }
-                  <button class="link" type="button" (click)="fixYear()">Jahr stimmt nicht?</button>
-                  @if (winners()) {
-                    <button class="link" type="button" (click)="next()">Trotzdem weiterspielen</button>
-                  }
+                  <span class="ht-acts">
+                    @if (g.rules.guessReward > 0 && !c.guessed) {
+                      <button class="btn" type="button" (click)="guess()">Titel &amp; Interpret richtig <small class="ht-plus">+{{ g.rules.guessReward }}</small></button>
+                    }
+                    <button class="link" type="button" (click)="fixYear()">Jahr stimmt nicht?</button>
+                    @if (winners()) {
+                      <button class="link" type="button" (click)="next()">Trotzdem weiterspielen</button>
+                    }
+                  </span>
                 }
               </div>
-            </div>
-          }
-
-          @if (canAct() && !finished() && (!c || c.phase === 'listen')) {
-            <div class="ht-tools">
-              @if (c) {
-                <button class="btn" type="button" [disabled]="!canSkip()" (click)="skip()">Überspringen <small class="ht-plus">−{{ g.rules.skipCost }}</small></button>
-              }
-              @if (g.rules.buyCost > 0) {
-                <button class="btn" type="button" [disabled]="!canBuy()" (click)="buy()">Karte kaufen <small class="ht-plus">−{{ g.rules.buyCost }}</small></button>
-              }
             </div>
           }
         </section>
@@ -146,51 +146,17 @@ type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; to
 
       </section>
 
-      @if (vetoPanel(); as vp) {
-        <div class="wrap ht-vetowrap">
-          <section class="ht-veto" aria-label="Einspruch">
-            <div class="ht-vh"><h2 class="lbl">Einspruch?</h2><span>kostet {{ pluralize(g.rules.vetoCost, 'Token', 'Token') }}</span></div>
-            @if (vetoing() === null) {
-              <p>{{ active().name }} hat den Platz bestätigt. Wer den Song anders einsortieren würde, widerspricht jetzt, alle anderen sagen „kein Einspruch“. Sobald alle entschieden haben, wird von selbst aufgelöst.</p>
-              <ul class="ht-vrows">
-                @for (o of vp.rows; track o.pi) {
-                  <li class="ht-vrow" [class.done]="o.state !== 'pending'" [style.--pc]="'var(--p' + o.color + ')'">
-                    <span class="dot"></span><b>{{ o.name }}</b>
-                    @switch (o.state) {
-                      @case ('veto') { <span class="ht-vstat hit">Einspruch</span> }
-                      @case ('pass') { <span class="ht-vstat">kein Einspruch</span> }
-                      @case ('poor') { <span class="ht-vstat">zu wenige Token</span> }
-                      @default {
-                        @if (o.mine) {
-                          <span class="ht-vbtns">
-                            <button class="btn sm" type="button" (click)="vetoing.set(o.pi)">Einspruch</button>
-                            <button class="btn sm" type="button" (click)="passVeto(o.pi)">Kein Einspruch</button>
-                          </span>
-                        } @else {
-                          <span class="ht-vstat wait">überlegt …</span>
-                        }
-                      }
-                    }
-                  </li>
-                }
-              </ul>
-              @if (canAct() && vp.pending.length) {
-                <div><button class="link" type="button" (click)="closeVeto()">Ohne Warten weiter</button></div>
-              }
-            } @else {
-              <p>Tippe im Zeitstrahl auf den Platz, an den <b>{{ g.players[vetoing()!]!.name }}</b> den Song legen würde.</p>
-              <div class="ht-ctrls"><button class="btn sm" type="button" (click)="vetoing.set(null)">Abbrechen</button></div>
-            }
-          </section>
-        </div>
-      }
-
       <section class="wrap ht-bands" [class.pad]="!!dock()" aria-label="Spielstand">
         @for (p of g.players; track $index; let i = $index) {
           <div class="ht-band" [class.turn]="i === g.turn && !finished()" [style.--pc]="'var(--p' + p.color + ')'">
             <div class="ht-sh">
               <span [sbAvatar]="p"></span>
-              <span class="ht-sn"><b>{{ p.name }}@if (g.tbl && g.tblSeat === p.color) { <em class="me">du</em> }</b>
+              <span class="ht-sn"><b>{{ p.name }}@if (g.tbl && g.tblSeat === p.color) { <em class="me">du</em> }
+                  @switch (vetoState().get(i)) {
+                    @case ('pending') { <span class="ht-vtag wait">überlegt …</span> }
+                    @case ('veto') { <span class="ht-vtag hit">Einspruch</span> }
+                    @case ('pass') { <span class="ht-vtag">kein Einspruch</span> }
+                  }</b>
                 <small>
                   @for (t of tokenDots(p.tokens); track $index) { <span class="ht-tok"></span> }
                   {{ pluralize(p.tokens, 'Token', 'Token') }}
@@ -208,7 +174,26 @@ type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; to
     @if (dock(); as d) {
       <div class="dock" role="region" aria-label="Nächster Schritt">
         <div class="wrap">
-          <button class="btn primary big" type="button" [disabled]="!canAct() || !d.act" (click)="run(d.act)">{{ canAct() ? d.label : active().name + ' ist dran' }}</button>
+          @if (vetoDock(); as v) {
+            <div class="ht-dockcap">
+              <span>{{ v.caption }}</span>
+              @if (v.canClose) {
+                <button class="link" type="button" (click)="closeVeto()">Ohne Warten weiter</button>
+              }
+            </div>
+            @if (v.pick) {
+              <button class="btn big" type="button" (click)="vetoing.set(null)">Abbrechen</button>
+            } @else if (v.ask; as ask) {
+              <div class="ht-dockrow">
+                <button class="btn big" type="button" (click)="vetoing.set(ask.pi)">Einspruch <small class="ht-plus">−{{ game().rules.vetoCost }}</small></button>
+                <button class="btn primary big" type="button" (click)="passVeto(ask.pi)">Kein Einspruch</button>
+              </div>
+            } @else {
+              <button class="btn primary big" type="button" disabled>{{ v.wait }}</button>
+            }
+          } @else {
+            <button class="btn primary big" type="button" [disabled]="!canAct() || !d.act" (click)="run(d.act)">{{ canAct() ? d.label : active().name + ' ist dran' }}</button>
+          }
         </div>
       </div>
     }
@@ -298,6 +283,23 @@ export class HitsterBoard {
     return { rows, pending: rows.filter(r => r.state === 'pending') };
   });
 
+  /** Stand je Spieler in der Einspruchsrunde, für die Anzeige im Spielstand. */
+  protected readonly vetoState = computed(() => new Map((this.vetoPanel()?.rows ?? []).map(r => [r.pi, r.state] as [number, 'veto' | 'pass' | 'poor' | 'pending'])));
+
+  /** Die untere Leiste in der Einspruchsrunde: Wer ist gerade dran (an diesem Gerät), oder worauf wird gewartet? `null` außerhalb der Runde. */
+  protected readonly vetoDock = computed(() => {
+    const vp = this.vetoPanel();
+    if (!vp) return null;
+    const g = this.game();
+    const picking = this.vetoing();
+    const mine = vp.pending.find(r => r.mine);
+    const canClose = this.canAct() && vp.pending.length > 0;
+    if (picking !== null) return { pick: true, ask: null, wait: '', canClose, caption: `${g.players[picking]!.name}: tippe im Zeitstrahl auf den Platz` };
+    if (mine) return { pick: false, ask: mine, wait: '', canClose, caption: `${mine.name}: Einspruch gegen den Platz von ${this.active().name}?` };
+    const names = vp.pending.map(r => r.name).join(', ');
+    return { pick: false, ask: null, wait: names ? 'Warte auf Einspruch: ' + names : 'Wird aufgelöst …', canClose, caption: '' };
+  });
+
   protected readonly dock = computed(() => {
     const g = this.game();
     const c = g.current;
@@ -344,9 +346,10 @@ export class HitsterBoard {
       const c = this.game().current;
       if (c && c.phase === 'listen') untracked(() => void this.player.play(c.card.id));
     });
-    // Einspruch ist nur in seiner Phase möglich
+    // Einspruch ansetzen geht nur, solange der Spieler noch entscheiden muss
     effect(() => {
-      if (this.game().current?.phase !== 'veto') untracked(() => this.vetoing.set(null));
+      const pi = this.vetoing();
+      if (pi !== null && !this.vetoPanel()?.pending.some(r => r.pi === pi)) untracked(() => this.vetoing.set(null));
     });
     // Zeitstrahl zur interessanten Stelle scrollen
     effect(() => {

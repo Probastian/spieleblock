@@ -65,6 +65,34 @@ export function trackOf(entry: unknown): SpotifyTrack | null {
   return { id: t['id'], title: t['name'], artists, year: yearOf(t['album']?.['release_date']), isrc: typeof t['external_ids']?.['isrc'] === 'string' ? t['external_ids']['isrc'] : null, cover: coverIdOf(t['album']?.['images']), album: String(t['album']?.['name'] ?? '').slice(0, 120), albumType: String(t['album']?.['album_type'] ?? '') };
 }
 
+export interface PlaylistHit {
+  id: string;
+  name: string;
+  owner: string;
+  /** Anzahl Songs, falls Spotify sie nennt. */
+  tracks: number | null;
+  /** Adresse des Titelbilds bei Spotify, falls vorhanden. */
+  image: string | null;
+}
+
+/** Titelbild einer Playlist: das kleinste ab 100 Pixeln (sonst das erste). Nur Adressen von Spotifys Bilderservern. */
+export function playlistImageOf(images: unknown): string | null {
+  const list = (Array.isArray(images) ? images : [])
+    .map((i: any) => ({ w: Number(i?.width) || 0, url: String(i?.url ?? '') }))
+    .filter(i => /^https:\/\/[a-z0-9.-]+\.(scdn\.co|spotifycdn\.com)\//i.test(i.url));
+  const sharp = list.filter(i => i.w >= 100).sort((a, b) => a.w - b.w);
+  return (sharp[0] ?? list[0])?.url ?? null;
+}
+
+/** Ein Eintrag aus „Meine Playlists“ oder der Suche; `null` für gelöschte oder unbrauchbare Einträge (Spotify liefert dort manchmal `null`). */
+export function playlistHitOf(raw: unknown): PlaylistHit | null {
+  const p = raw as Record<string, any> | null;
+  if (!p || typeof p['id'] !== 'string' || !/^[A-Za-z0-9]{10,40}$/.test(p['id']) || typeof p['name'] !== 'string' || !p['name']) return null;
+  // Die Anzahl heißt je nach Fassung der Antwort `tracks.total` oder `items.total`
+  const total = Number(p['tracks']?.['total'] ?? p['items']?.['total']);
+  return { id: p['id'], image: playlistImageOf(p['images']), name: p['name'].slice(0, 80), owner: String(p['owner']?.['display_name'] ?? p['owner']?.['id'] ?? '').slice(0, 40), tracks: Number.isFinite(total) ? total : null };
+}
+
 /** Anzeige-Interpret für die Karte: alle Namen, gekürzt. */
 export const artistLine = (artists: readonly string[]): string => artists.join(', ').slice(0, 60);
 

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { SpotifyAuth } from './spotify-auth.service';
-import { describeSpotifyError, parsePlaylistId, trackOf, type SpotifyErrorKind, type SpotifyTrack } from './spotify.util';
+import { describeSpotifyError, parsePlaylistId, playlistHitOf, trackOf, type PlaylistHit, type SpotifyErrorKind, type SpotifyTrack } from './spotify.util';
 
 const API = 'https://api.spotify.com/v1';
 const PAGE = 50;
@@ -93,6 +93,28 @@ export class SpotifyApi {
       if (!data?.next || !items.length) break;
     }
     return { id, name: head?.name?.slice(0, 80) || 'Playlist', tracks, skipped, truncated: total > MAX_PAGES * PAGE };
+  }
+
+  /** Die eigenen und abonnierten Playlists (bis zu 150). */
+  async myPlaylists(): Promise<PlaylistHit[]> {
+    const out: PlaylistHit[] = [];
+    for (let page = 0; page < 3; page++) {
+      const data = await this.request<{ items?: unknown[]; next?: string | null }>('GET', `/me/playlists?limit=50&offset=${page * 50}`);
+      for (const raw of data?.items ?? []) {
+        const hit = playlistHitOf(raw);
+        if (hit) out.push(hit);
+      }
+      if (!data?.next) break;
+    }
+    return out;
+  }
+
+  /** Öffentliche Playlists suchen (Spotify liefert für neue Apps höchstens 10 je Anfrage). */
+  async searchPlaylists(query: string): Promise<PlaylistHit[]> {
+    const q = query.trim();
+    if (q.length < 2) return [];
+    const data = await this.request<{ playlists?: { items?: unknown[] } }>('GET', `/search?q=${encodeURIComponent(q)}&type=playlist&limit=10`);
+    return (data?.playlists?.items ?? []).map(playlistHitOf).filter((h): h is PlaylistHit => !!h);
   }
 
   async devices(): Promise<SpotifyDevice[]> {

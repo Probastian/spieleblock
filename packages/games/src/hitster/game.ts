@@ -1,5 +1,5 @@
 import type { BaseGame, SeatedPlayer } from '../core/types';
-import { clampInt, isId, newId, num, pushUndo } from '../core/util';
+import { clampInt, isId, newId, num, pushUndo, shuffle } from '../core/util';
 
 /** Eine Song-Karte. Die Spotify-Adresse ergibt sich aus der ID (`trackUri`). */
 export interface HitsterCard {
@@ -224,15 +224,7 @@ export function create(players: SeatedPlayer[], o: Partial<HitsterOptions> = {})
   };
 }
 
-/** Fisher-Yates; `random` ist austauschbar, damit Tests eine feste Reihenfolge bekommen. */
-export function shuffle<T>(list: readonly T[], random: () => number = Math.random): T[] {
-  const out = list.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [out[i], out[j]] = [out[j]!, out[i]!];
-  }
-  return out;
-}
+export { shuffle };
 
 /** Position, an der ein Jahr in einen sortierten Zeitstrahl passt (hinter gleichen Jahren). */
 export function insertionIndex(line: readonly HitsterCard[], year: number): number {

@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, ViewEncapsulation, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewEncapsulation, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import type { hitster } from '@spieleblock/games';
 import { HitsterDecks } from '../../core/hitster/hitster-decks.service';
 import { SheetService } from '../../core/ui/sheet.service';
+import { SpotifyApi } from '../../core/spotify/spotify-api.service';
 import { SpotifyAuth } from '../../core/spotify/spotify-auth.service';
+import type { PlaylistHit } from '../../core/spotify/spotify.util';
 import { inputValue } from '../../shared/dom';
 import { HitsterPlayback } from './hitster-playback.component';
 import { DeckSheet } from './deck.sheet';
@@ -47,6 +49,31 @@ const VETO_COSTS = [0, 1, 2, 3];
         @if (message(); as m) {
           <p class="ht-err" role="alert">{{ m }}</p>
         }
+        <div class="ht-opt">
+          <h3>Playlist suchen</h3>
+          <div class="chips" style="margin-top: 0">
+            <button type="button" class="chip txt" [attr.aria-pressed]="scope() === 'mine'" (click)="setScope('mine')">Meine</button>
+            <button type="button" class="chip txt" [attr.aria-pressed]="scope() === 'global'" (click)="setScope('global')">Alle auf Spotify</button>
+          </div>
+          <form class="addrow" autocomplete="off" (submit)="search($event)">
+            <input class="pin" name="q" type="search" [placeholder]="scope() === 'mine' ? 'In meinen Playlists filtern' : 'Suchbegriff, z. B. 90er Hits'" aria-label="Playlist suchen" [value]="query()" (input)="query.set(inputValue($event))" />
+            @if (scope() === 'global') {
+              <button class="btn" type="submit" [disabled]="searching() || query().trim().length < 2">{{ searching() ? 'Suche …' : 'Suchen' }}</button>
+            }
+          </form>
+          @if (searchError()) {
+            <p class="ht-err" role="alert">{{ searchError() }}</p>
+          }
+          @if (shownHits().length) {
+            <ul class="ht-dev">
+              @for (h of shownHits(); track h.id) {
+                <li><button type="button" [disabled]="busy()" (click)="addId(h.id)"><span class="ht-pl" [style.background-image]="h.image ? 'url(&quot;' + h.image + '&quot;)' : null" aria-hidden="true"></span><span class="ht-plt"><b>{{ h.name }}</b><small>{{ h.owner }}{{ h.tracks !== null ? ' · ' + h.tracks + ' Songs' : '' }}</small></span></button></li>
+              }
+            </ul>
+          } @else if (searched() && !searching() && !searchError()) {
+            <p class="note" style="margin: 0">Nichts gefunden.</p>
+          }
+        </div>
         <p class="note" style="margin: 0">In Spotify: Playlist öffnen, „Teilen“, „Link kopieren“. Auch private und gemeinsame Playlists gehen. Mindestens {{ playerCount() + 5 }} Songs braucht ein Spiel mit {{ playerCount() }} {{ playerCount() === 1 ? 'Spieler' : 'Spielern' }}.</p>
 
         @if (selected(); as d) {
@@ -142,6 +169,7 @@ export class HitsterSetup {
   protected readonly decks = inject(HitsterDecks);
   private readonly store = inject(Store);
   private readonly sheets = inject(SheetService);
+  private readonly api = inject(SpotifyApi);
 
   protected readonly goals = GOALS;
   protected readonly tokens = [0, 1, 2, 3, 5];
@@ -161,17 +189,80 @@ export class HitsterSetup {
   protected readonly busy = signal(false);
   protected readonly message = signal('');
 
+  protected readonly scope = signal<'mine' | 'global'>('mine');
+  protected readonly query = signal('');
+  protected readonly hits = signal<PlaylistHit[]>([]);
+  protected readonly searching = signal(false);
+  protected readonly searched = signal(false);
+  protected readonly searchError = signal('');
+  private mineLoaded = false;
+  /** „Meine“ filtert lokal beim Tippen, „Alle“ zeigt das Ergebnis der letzten Suche. */
+  protected readonly shownHits = computed(() => {
+    const q = this.query().trim().toLowerCase();
+    return this.scope() === 'mine' && q ? this.hits().filter(h => h.name.toLowerCase().includes(q)) : this.hits();
+  });
+
+  protected setScope(scope: 'mine' | 'global'): void {
+    this.scope.set(scope);
+    this.hits.set([]);
+    this.searched.set(false);
+    this.searchError.set('');
+    if (scope === 'mine') void this.loadMine();
+  }
+
+  private async loadMine(): Promise<void> {
+    this.searching.set(true);
+    try {
+      this.hits.set(await this.api.myPlaylists());
+      this.searched.set(true);
+    } catch (e) {
+      this.searchError.set(this.decks.errorText(e));
+    } finally {
+      this.searching.set(false);
+    }
+  }
+
+  protected async search(e: Event): Promise<void> {
+    e.preventDefault();
+    if (this.scope() === 'mine' || this.searching()) return;
+    this.searching.set(true);
+    this.searchError.set('');
+    try {
+      this.hits.set(await this.api.searchPlaylists(this.query()));
+      this.searched.set(true);
+    } catch (err) {
+      this.searchError.set(this.decks.errorText(err));
+    } finally {
+      this.searching.set(false);
+    }
+  }
+
+  constructor() {
+    // „Meine“ ist vorgewählt: sobald Spotify verbunden ist, die eigenen Playlists laden
+    effect(() => {
+      if (this.auth.loggedIn() && !this.mineLoaded) {
+        this.mineLoaded = true;
+        untracked(() => void this.loadMine());
+      }
+    });
+  }
+
   protected set(patch: Partial<Options>): void {
     this.store.setGameOptions<Options>('hitster', patch);
   }
 
-  protected async add(e: Event): Promise<void> {
+  protected add(e: Event): Promise<void> {
     e.preventDefault();
+    return this.addId(this.link());
+  }
+
+  /** Playlist per Link oder ID (aus der Eingabe oder einem Suchtreffer) einlesen und vormerken. */
+  protected async addId(input: string): Promise<void> {
     if (this.busy()) return;
     this.busy.set(true);
     this.message.set('');
     try {
-      const playlist = await this.decks.load(this.link(), undefined, true);
+      const playlist = await this.decks.load(input, undefined, true);
       this.decks.select(playlist.id);
       this.link.set('');
       const cards = this.decks.cardsOf(playlist);
