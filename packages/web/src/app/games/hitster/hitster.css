@@ -27,7 +27,7 @@
 .htc-t{position:absolute;left:8px;right:8px;bottom:7px;display:grid;gap:1px;text-align:center;line-height:1.12}
 .htc-t b{font-family:var(--f-body);font-weight:400;font-size:max(13px,calc(var(--cs)*.108));display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .htc-t span{font-size:max(11.5px,calc(var(--cs)*.085));opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.htc.s{--cs:62px;border-width:1.5px;box-shadow:1px 2px 0 var(--shadow-c);scroll-snap-align:start}
+.htc.s{--cs:62px;border-width:1.5px;box-shadow:1px 2px 0 var(--shadow-c)}
 .htc.s::before{background:linear-gradient(to bottom,rgba(0,0,0,.08),rgba(0,0,0,.78))}
 .htc.s .htc-y{top:auto;bottom:4px;font-size:21px}
 .htc.new{border-color:var(--good);box-shadow:0 0 0 3px var(--good),2px 3px 0 var(--shadow-c);animation:ht-pop .5s ease-out}
@@ -40,9 +40,9 @@
 .ht-axis{display:flex;justify-content:space-between;margin:16px auto 0;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 /* Volle Bildschirmbreite; die erste Karte beginnt bündig mit der Textspalte (560 px), gewischt wird über den ganzen Bildschirm */
 .ht-full{width:100%}
-.ht-track{--ht-cs:clamp(124px,36vw,152px);--ht-pad:max(16px,calc((100% - 560px)/2 + 16px));overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scroll-padding-inline:var(--ht-pad);padding:10px var(--ht-pad) 18px;scrollbar-width:thin;-webkit-mask-image:linear-gradient(to right,transparent,#000 14px,#000 calc(100% - 14px),transparent);mask-image:linear-gradient(to right,transparent,#000 14px,#000 calc(100% - 14px),transparent)}
+.ht-track{--ht-cs:clamp(124px,36vw,152px);--ht-pad:max(16px,calc((100% - 560px)/2 + 16px));overflow-x:auto;overscroll-behavior-x:contain;padding:10px var(--ht-pad) 18px;scrollbar-width:thin;-webkit-mask-image:linear-gradient(to right,transparent,#000 14px,#000 calc(100% - 14px),transparent);mask-image:linear-gradient(to right,transparent,#000 14px,#000 calc(100% - 14px),transparent)}
 .ht-rail{list-style:none;margin:0 auto;padding:0;display:flex;align-items:center;gap:8px;width:max-content}
-.ht-rail>li{flex:none;scroll-snap-align:center}
+.ht-rail>li{flex:none}
 .ht-slot{display:grid;place-items:center;width:40px;height:var(--ht-cs);padding:0;border:2px dashed var(--line-strong);border-radius:var(--wob-s);background:transparent;color:var(--muted);font-family:var(--f-num);font-size:30px;line-height:1}
 .ht-slot:disabled{opacity:.4}
 .ht-slot:not(:disabled):active{background:var(--press)}
@@ -72,20 +72,19 @@
 .ht-vstat.hit{color:var(--pen);font-weight:700}
 .ht-vstat.wait{animation:ht-blink 1.4s ease-in-out infinite}
 
-/* --- Spielstand: ein Band je Spieler, der Mini-Zeitstrahl läuft über die volle Breite und steht in der Mitte --- */
+/* --- Spielstand: eine Karte je Spieler in der Textspalte, der Mini-Zeitstrahl steht darin in der Mitte --- */
 .ht-vetowrap{margin-top:6px}
-.ht-bands{margin-top:18px}
+.ht-bands{display:grid;gap:8px;margin-top:16px}
 .ht-bands.pad{padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}
-.ht-band{padding:10px 0 12px;border-top:2px dashed var(--line-strong)}
-.ht-band:last-child{border-bottom:2px dashed var(--line-strong)}
-.ht-band.turn{background:var(--gold-soft);border-top-color:var(--pc)}
+.ht-band{display:grid;gap:8px;padding:8px 12px;border:2px solid var(--edge);border-radius:var(--wob-s);background:var(--sheet);transition:background-color .4s,box-shadow .4s}
+.ht-band.turn{background:var(--gold-soft);box-shadow:3px 3px 0 var(--pc)}
 .ht-sh{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px}
 .ht-sn b{font-weight:400;font-size:19px}
 .ht-sn small{display:block;font-size:14px;color:var(--ink-2)}
 .ht-n{font-family:var(--f-num);font-size:26px;font-weight:700;color:var(--pen);line-height:1;white-space:nowrap}
 .ht-n small{display:inline;font-family:var(--f-body);font-size:14px;font-weight:400;color:var(--muted)}
 .ht-tok{display:inline-block;width:11px;height:11px;margin-right:3px;border-radius:50%;border:2px solid var(--edge);background:var(--gold-soft)}
-.htm{display:flex;gap:6px;overflow-x:auto;padding:8px 16px 6px;scroll-snap-type:x proximity;scroll-padding-inline:16px;scrollbar-width:thin}
+.htm{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 6px;scrollbar-width:thin}
 /* Auto-Ränder zentrieren die Reihe, solange sie passt; sind es mehr Karten, wird normal gescrollt und nichts links abgeschnitten */
 .htm>:first-child{margin-left:auto}
 .htm>:last-child{margin-right:auto}
@@ -180,8 +179,6 @@
 @keyframes ht-blink{50%{opacity:.35}}
 /* Token: neue Token poppen auf */
 .ht-tok{animation:ht-pop .4s cubic-bezier(.3,1.7,.5,1)}
-/* Wechsel des Spielers: das Band wird sanft hervorgehoben */
-.ht-band{transition:background-color .4s,border-color .4s}
 /* Tasten geben beim Drücken nach */
 .ht-tools .btn,.ht-res .btn,.ht-vbtns .btn,.htp-b{transition:transform .12s,box-shadow .12s}
 .ht-tools .btn:active,.ht-res .btn:active,.ht-vbtns .btn:active{transform:translateY(2px) scale(.97)}

@@ -185,10 +185,10 @@ type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; to
         </div>
       }
 
-      <section class="ht-bands" [class.pad]="!!dock()" aria-label="Spielstand">
+      <section class="wrap ht-bands" [class.pad]="!!dock()" aria-label="Spielstand">
         @for (p of g.players; track $index; let i = $index) {
           <div class="ht-band" [class.turn]="i === g.turn && !finished()" [style.--pc]="'var(--p' + p.color + ')'">
-            <div class="wrap ht-sh">
+            <div class="ht-sh">
               <span [sbAvatar]="p"></span>
               <span class="ht-sn"><b>{{ p.name }}@if (g.tbl && g.tblSeat === p.color) { <em class="me">du</em> }</b>
                 <small>
@@ -369,7 +369,7 @@ export class HitsterBoard {
       const r = el.getBoundingClientRect();
       const left = track.scrollLeft + (r.left - t.left) - track.clientWidth / 2 + r.width / 2;
       track.scrollTo({ left: Math.max(0, left), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
-    } else if (track && !this.game().current) track.scrollTo({ left: 0 });
+    } else if (track) track.scrollLeft = (track.scrollWidth - track.clientWidth) / 2;
   }
 
   protected tokenDots = (n: number): number[] => Array.from({ length: Math.min(n, 8) });
