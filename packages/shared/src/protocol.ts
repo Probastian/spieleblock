@@ -42,6 +42,8 @@ export interface InfoResponse {
   ok: boolean;
   /** Release-Version des Servers, z. B. `v2.0.1`, oder `dev`. */
   version: string;
+  /** Client-ID der Spotify-App für Hitster (öffentlich, kein Geheimnis); leer = nicht eingerichtet. */
+  spotifyClientId: string;
 }
 
 export interface MeResponse {

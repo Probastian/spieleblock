@@ -17,6 +17,8 @@ export interface Config {
   log: boolean;
   /** Release-Version, z. B. `v2.0.1`; `dev` ohne Release. */
   version: string;
+  /** Client-ID der Spotify-App für Hitster. Öffentlich, wird der Web-App mitgeteilt. Leer = Hitster ohne Spotify. */
+  spotifyClientId: string;
 }
 
 type Env = Record<string, string | undefined>;
@@ -55,5 +57,6 @@ export function loadConfig(env: Env, baseDir: string): Config {
     ratePerMin: int('RATE_PER_MIN', 1200),
     log: str('LOG', '1') !== '0',
     version: readVersion(env, baseDir),
+    spotifyClientId: /^[A-Za-z0-9]{16,64}$/.test(str('SPOTIFY_CLIENT_ID', '')) ? str('SPOTIFY_CLIENT_ID', '') : '',
   };
 }

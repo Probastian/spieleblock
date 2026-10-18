@@ -12,6 +12,8 @@ WorkingDirectory=/opt/spieleblock
 Environment=PORT=3000
 Environment=DATA_DIR=/var/lib/spieleblock
 # Environment=ACCESS_KEY=dein-geheimer-zugangscode
+# Nur für Hitster (docs/betrieb.md):
+# Environment=SPOTIFY_CLIENT_ID=deine-spotify-client-id
 ExecStart=/usr/bin/node server.mjs
 Restart=always
 RestartSec=3

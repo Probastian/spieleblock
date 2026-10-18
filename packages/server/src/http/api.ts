@@ -96,7 +96,7 @@ export function createApiHandler(deps: ApiDeps) {
 
     const route = url.pathname;
     if (route === ENDPOINTS.info) {
-      const info: InfoResponse = { app: 'spieleblock', needAccess: auth.needsAccessCode, ok: auth.accessOk(req), version: config.version };
+      const info: InfoResponse = { app: 'spieleblock', needAccess: auth.needsAccessCode, ok: auth.accessOk(req), version: config.version, spotifyClientId: config.spotifyClientId };
       return sendJson(res, 200, info);
     }
     if (!auth.accessOk(req)) return sendError(res, 401, 'unauthenticated');
