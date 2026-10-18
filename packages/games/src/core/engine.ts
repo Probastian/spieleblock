@@ -25,6 +25,11 @@ export interface GameEngine<G extends BaseGame = BaseGame, O = unknown> {
   readonly localKeys: readonly string[];
 
   normalizeOptions(raw: unknown): O;
+  /**
+   * Führt die Einstellungen zweier Geräte zusammen. Ohne diese Methode gilt die neuere Fassung komplett.
+   * Nur nötig, wenn Einstellungen Sammlungen enthalten, die auf mehreren Geräten wachsen.
+   */
+  mergeOptions?(newer: O, older: O): O;
   create(players: SeatedPlayer[], options: O): G;
   /** Neues Spiel mit denselben Einstellungen. `nameOf` liefert den aktuellen Namen eines Spielers. */
   rematch(game: G, nameOf: (player: SeatedPlayer) => string): G;

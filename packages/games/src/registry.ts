@@ -1,4 +1,5 @@
 import type { AnyEngine } from './core/engine';
+import { hitsterEngine } from './hitster/engine';
 import { kniffelEngine } from './kniffel/engine';
 import { tafelEngine } from './tafel/engine';
 import { wizardEngine } from './wizard/engine';
@@ -7,7 +8,7 @@ import { wizardEngine } from './wizard/engine';
  * Alle Spiele. Die Reihenfolge bestimmt die Reihenfolge im Hauptmenü.
  * Ein neues Spiel wird hier eingetragen, mehr braucht dieses Paket nicht.
  */
-export const ENGINES: readonly AnyEngine[] = [kniffelEngine, wizardEngine, tafelEngine];
+export const ENGINES: readonly AnyEngine[] = [kniffelEngine, wizardEngine, hitsterEngine, tafelEngine];
 
 const byId = new Map<string, AnyEngine>(ENGINES.map(e => [e.id, e]));
 

@@ -8,6 +8,7 @@ Alle Einstellungen sind Umgebungsvariablen: in `docker-compose.yml` unter `envir
 
 | Variable | Standard | Bedeutung |
 |---|---|---|
+| `SPOTIFY_CLIENT_ID` | leer | Client-ID der Spotify-App für Hitster, siehe [Hitster einrichten](#hitster-einrichten-spotify). Ohne sie bleibt Hitster ohne Spotify. |
 | `ACCESS_KEY` | leer | Zugangscode. Wenn gesetzt, fragt die App danach (wird im Browser gemerkt). Die Seite selbst ist öffentlich, die Daten nicht. |
 | `PORT` | `3000` | Port des Servers |
 | `HOST` | `0.0.0.0` | Adresse, auf der der Server lauscht (`127.0.0.1`, wenn nur ein lokaler Proxy davor steht) |
@@ -19,6 +20,25 @@ Alle Einstellungen sind Umgebungsvariablen: in `docker-compose.yml` unter `envir
 | `MAX_DOCS` | `50000` | Maximale Anzahl Dokumente insgesamt |
 | `RATE_PER_MIN` | `1200` | Anfragen pro Minute und IP |
 | `LOG` | `1` | `0` schaltet die Protokollausgabe ab |
+
+## Hitster einrichten (Spotify)
+
+Hitster liest Playlists aus Spotify und startet die Songs auf einem Spotify-Gerät. Dafür braucht der Block eine eigene Spotify-App. Das ist einmalig und kostenlos, aber an Bedingungen von Spotify geknüpft.
+
+1. Auf [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) mit dem Spotify-Konto einloggen und **Create app** wählen. Bei „APIs used“ **Web API** ankreuzen.
+2. Als **Redirect URI** genau diese Adresse eintragen, mit deiner Domain und ohne Schrägstrich am Ende: `https://spiele.deinedomain.de/spotify`. Sie muss `https` haben.
+3. Die **Client ID** der App in `docker-compose.yml` (`SPOTIFY_CLIENT_ID`) bzw. in die systemd-Datei eintragen und den Dienst neu starten. Die Client-ID ist kein Geheimnis, ein Client-Secret braucht der Block nicht.
+4. In der Spotify-App unter **User Management** jede Person eintragen, die sich im Block bei Spotify anmelden soll (Name und Mail ihres Spotify-Kontos). Sonst lehnt Spotify die Anmeldung ab.
+
+**Bedingungen von Spotify** (Stand Februar 2026, sie können sich ändern):
+
+* Der **Besitzer der Spotify-App braucht Premium.** Läuft das Abo aus, hört Hitster auf zu funktionieren, bis es wieder aktiv ist.
+* Im Entwicklermodus sind **höchstens 5 Personen** freigeschaltet. Das betrifft nur, wer sich im Block mit Spotify anmeldet.
+* **Wer Musik abspielen lässt, braucht Premium.** Die Wiedergabe läuft über Spotify Connect, und Spotify erlaubt das nur mit Premium.
+
+Wer am Live-Tisch nur mitspielt, muss sich nicht anmelden: Es genügt, wenn ein Gerät den Stapel lädt und ein Gerät die Musik abspielt.
+
+**Jahre.** Spotify nennt oft das Jahr des Albums, bei Sammlern und Neuauflagen also nicht das Original. Deshalb fragt der Browser beim Prüfen die freie Datenbank [MusicBrainz](https://musicbrainz.org) nach dem frühesten Erscheinungsjahr. Das Ergebnis speichert der Block in den Einstellungen des Nutzers, jeder Song wird nur einmal gesucht. MusicBrainz erlaubt etwa eine Anfrage pro Sekunde, eine Playlist mit 100 Songs braucht deshalb gut zwei Minuten. Die Prüfung läuft im Hintergrund, man kann schon vorher spielen.
 
 ## Daten und Backups
 
@@ -110,7 +130,8 @@ Die Daten bleiben. Geöffnete Browser laden die neue Version beim nächsten Öff
 
 ## Datenschutz und Sicherheit
 
-* **Keine Konten, keine Mailadressen, kein Tracking.** Schriften und alles andere kommen vom eigenen Server, es werden keine fremden Dienste geladen.
+* **Keine Konten, keine Mailadressen, kein Tracking.** Schriften und alles andere kommen vom eigenen Server. Einzige Ausnahme ist **Hitster**: Der Browser spricht dann direkt mit Spotify (Anmeldung, Playlists, Wiedergabe) und MusicBrainz (Jahre). MusicBrainz erfährt dabei Titel und Interpret der geprüften Songs und die IP-Adresse des Geräts. Der Server des Blocks sieht davon nichts.
+* **Spotify-Anmeldungen bleiben auf dem Gerät.** Die Zugangsdaten für Spotify liegen nur im Browser des jeweiligen Geräts und werden weder zum Server noch zu anderen Geräten übertragen. „Von Spotify abmelden“ im Spiel löscht sie.
 * **Gespeichert wird:** Spielernamen, Farben, Einstellungen und Spiele, dazu offene Live-Tische. Jeder Nutzer bleibt unter einer zufälligen Gerätekennung; der Server kennt nur einen Hash davon.
 * **Schutz der Nutzerdaten:** Nur wer die Gerätekennung kennt, kann die Spieler und Spiele dieser Kennung lesen oder ändern. Die Kennung ist wie ein Passwort zu behandeln.
 * **Live-Tische sind offen:** Wer den fünfstelligen Code kennt (und den Dienst erreicht), kann am Tisch mitlesen und mitschreiben. Das ist für den Spieleabend gedacht. Wer den Dienst im Internet betreibt, setzt `ACCESS_KEY`, damit Fremde gar nicht erst hineinkommen.
@@ -130,4 +151,10 @@ Die Daten bleiben. Geöffnete Browser laden die neue Version beim nächsten Öff
 | Seite lädt nach Update alt/kaputt | Hart neu laden. Der Offline-Speicher (Service Worker) holt neue Dateien beim nächsten Start. |
 | `docker compose` meldet „Port belegt“ | In `docker-compose.yml` den linken Port ändern, z. B. `"3100:3000"`. |
 | Container startet nicht, Log: „Snapshot nicht lesbar“ | `snapshot.json` ist beschädigt. Aus `backups/` zurückspielen (siehe oben). |
+| Hitster: „noch nicht mit einer Spotify-App verbunden“ | `SPOTIFY_CLIENT_ID` ist nicht gesetzt oder der Dienst wurde nach dem Eintragen nicht neu gestartet. |
+| Hitster: Spotify-Anmeldung scheitert oder zeigt „INVALID_CLIENT: Invalid redirect URI“ | Die Redirect URI in der Spotify-App stimmt nicht genau mit `https://<Domain>/spotify` überein, oder die Seite wird unter einer anderen Adresse geöffnet. |
+| Hitster: „Spotify verweigert den Zugriff“ | Das Konto steht nicht unter **User Management** der Spotify-App (höchstens 5), oder der Besitzer der App hat kein Premium mehr. |
+| Hitster: „Kein Spotify-Gerät gefunden“ | Auf dem Gerät muss die Spotify-App offen sein und kurz etwas gespielt haben. Dann im Spiel unter Menü, Wiedergabe, „Geräte suchen“. |
+| Hitster: „braucht das Spotify-Konto Premium“ | Spotify erlaubt die Fernsteuerung nur mit Premium. |
+| Hitster: Jahresprüfung bricht ab („MusicBrainz antwortet gerade nicht“) | MusicBrainz ist überlastet. „Weiter prüfen“ später nochmal, bis dahin gilt das Spotify-Jahr. |
 | Dienst antwortet mit `429` | Mehr als `RATE_PER_MIN` Anfragen pro Minute von einer IP. Steht ein Proxy davor, muss er `X-Forwarded-For` setzen, sonst zählen alle Nutzer als eine IP. |

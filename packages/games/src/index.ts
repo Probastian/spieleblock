@@ -11,4 +11,5 @@ export * from './registry';
 // Spiel-spezifische Funktionen bleiben im eigenen Namensraum: `kniffel.commit(...)`
 export * as kniffel from './kniffel';
 export * as wizard from './wizard';
+export * as hitster from './hitster';
 export * as tafel from './tafel';

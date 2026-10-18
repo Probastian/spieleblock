@@ -9,5 +9,6 @@ export const routes: Routes = [
   })),
   { path: 'neu/:type', loadComponent: () => import('./features/setup/setup.page').then(m => m.SetupPage) },
   { path: 'spiel/:id', loadComponent: () => import('./features/play/play.page').then(m => m.PlayPage) },
+  { path: 'spotify', loadComponent: () => import('./features/spotify/spotify-callback.page').then(m => m.SpotifyCallbackPage) },
   { path: '**', redirectTo: 'spiele' },
 ];

@@ -1,5 +1,6 @@
 import { ENGINES } from '@spieleblock/games';
 import type { GameUi } from './game-ui';
+import { hitsterUi } from './hitster/hitster.ui';
 import { kniffelUi } from './kniffel/kniffel.ui';
 import { tafelUi } from './tafel/tafel.ui';
 import { wizardUi } from './wizard/wizard.ui';
@@ -8,7 +9,7 @@ import { wizardUi } from './wizard/wizard.ui';
  * Alle Spiele der Oberfläche, in der Reihenfolge des Hauptmenüs.
  * Ein neues Spiel: Engine in `packages/games` anlegen, hier die Oberfläche eintragen.
  */
-export const GAME_UIS: readonly GameUi[] = [kniffelUi, wizardUi, tafelUi];
+export const GAME_UIS: readonly GameUi[] = [kniffelUi, wizardUi, hitsterUi, tafelUi];
 
 const byId = new Map(GAME_UIS.map(ui => [ui.id, ui]));
 

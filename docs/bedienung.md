@@ -35,6 +35,17 @@ Für 3 bis 6 Spieler. Pro Runde: erst die **Ansagen** eintragen (sie dürfen zus
 
 Für jedes Spiel ohne eigenen Block. **Runde eintragen**, für jeden Spieler die Punkte, mit dem Vorzeichen-Knopf auch Minuspunkte. Wertung „Höchste“ oder „Niedrigste gewinnt“, optional eine Zielpunktzahl: Wer sie erreicht, bekommt den Hinweis zum Auswerten.
 
+## Hitster
+
+Songs aus einer Spotify-Playlist in die richtige zeitliche Reihenfolge bringen. Jeder hat einen eigenen Zeitstrahl, die ältesten Songs oben. Wer zuerst das Ziel an Karten hat (Standard 10), gewinnt.
+
+* **Einrichten:** Beim Einrichten mit Spotify anmelden, den Link einer Playlist einfügen (in Spotify: Playlist öffnen, Teilen, Link kopieren) und Regeln wählen. Danach gleicht der Block die Jahre mit MusicBrainz ab, weil Spotify oft das Albumjahr nennt. Das läuft im Hintergrund, man kann gleich losspielen. Unter **Songs ansehen** stehen alle Songs mit Jahr, unsichere sind mit „Prüfen“ markiert. Tippe auf ein Jahr, um es zu berichtigen.
+* **Musik:** Schalte auf dem Gerät, das die Musik spielen soll, **Auf diesem Gerät abspielen** ein und wähle ein Spotify-Gerät (Handy, Computer, Box). Die Spotify-App muss dort offen sein. Jedes Gerät entscheidet selbst: Spielen zwei Geräte mit, hören beide jeden Song. Die Spotify-App zeigt den Titel des laufenden Songs an, spielt deshalb am besten auf einer Box oder dreht das Handy um.
+* **Ablauf:** **Karte ziehen**, der Song startet. Im Zeitstrahl auf **+** tippen, wo er hingehört (vor die erste, zwischen zwei oder hinter die letzte Karte), dann **Auflösen**. Liegt er richtig, bleibt die Karte im Zeitstrahl, sonst ist sie raus. Gleiche Jahre zählen als richtig. **Weiter** gibt an den nächsten Spieler.
+* **Token:** Mit Token kannst du einen Song **überspringen** (vor dem Legen), bekommst welche, wenn du **Titel und Interpret** richtig nennst (die Runde entscheidet, der Block zählt nur), und kannst eine **Karte kaufen**. Start, Kosten und Gewinn stellst du beim Einrichten ein.
+* **Stimmt ein Jahr nicht?** Nach dem Auflösen **Jahr stimmt nicht?** tippen. Die Karte wird neu bewertet, und die Korrektur gilt auch in künftigen Spielen.
+* **Live-Tisch:** Alle sehen den Stand auf dem eigenen Handy, aber nur wer dran ist, kann ziehen und legen. Den Stapel lädt das Gerät des Gastgebers. Wer nur mitspielt, braucht kein Spotify.
+
 ## Rückgängig und Ende
 
 * Nach jedem Eintrag erscheint kurz **Rückgängig**. Im Menü (⋯) steht der letzte Schritt ebenfalls bereit; so lassen sich nacheinander bis zu 60 Schritte zurücknehmen.

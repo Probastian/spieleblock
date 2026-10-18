@@ -27,7 +27,7 @@ Alles, was Server und App übereinstimmend wissen müssen: erlaubte Dokumentpfad
 Reine Funktionen auf Datenobjekten, ohne Angular und ohne DOM, daher gut testbar.
 
 * `core/` ist spielunabhängig: Typen (`BaseGame`), der Vertrag `GameEngine`, Rangliste, Beenden/Wiederöffnen, Bereinigung fremder Dokumente (`sanitizeGame`), Statistik, Rekorde und Entwicklungs-Diagramm.
-* `kniffel/`, `wizard/`, `tafel/` je mit `game.ts` (Zustand und Operationen) und `engine.ts` (Anbindung an den Vertrag).
+* `kniffel/`, `wizard/`, `hitster/`, `tafel/` je mit `game.ts` (Zustand und Operationen) und `engine.ts` (Anbindung an den Vertrag).
 * `registry.ts` listet alle Engines.
 
 Operationen ändern ein übergebenes Spiel direkt (`kniffel.commit(draft, …)`). Wer sie aufruft, übergibt eine Kopie, siehe Store.
@@ -40,6 +40,8 @@ Aufgeteilt nach Aufgaben: `config`, `auth`, `rate-limit`, `store/document-store`
 src/app/
   core/        Dienste ohne Oberfläche
     api/         HTTP, Live-Stream (SSE), Datenbank-Zugriff, Gerätekennung, Zugangscode
+    spotify/     Hitster: Anmeldung (PKCE), Spotify-API, Wiedergabe über Connect (alles im Browser)
+    hitster/     Hitster: Playlists und Jahresprüfung (MusicBrainz)
     state/       Store (Zustand), SyncService (Abgleich), Backup, Modelle
     table/       TableService (Live-Tisch)
     ui/          Toast, Sheets, Wake-Lock, Konfetti
@@ -47,7 +49,7 @@ src/app/
   shared/      wiederverwendbare Bausteine (Würfel, Symbole, Diagramm, Sheet-Kopf …)
   shell/       Wurzel-Bausteine (Sheet-Host, Toast, Konfetti, Zugangscode-Abfrage)
   features/    Seiten: hub (Spiele, Spieler, Verlauf), setup, play (+ Spielmenü, Ende), table
-  games/       Oberfläche je Spiel: kniffel/, wizard/, tafel/ und die Registry
+  games/       Oberfläche je Spiel: kniffel/, wizard/, hitster/, tafel/ und die Registry
   styles/      globales CSS in der Reihenfolge der Kaskade
 ```
 
@@ -71,6 +73,16 @@ Dokumentpfade (siehe `shared/paths.ts`):
 ## Live-Tisch
 
 Jedes Gerät hat eine lokale Kopie des Spiels. Der `TableService` lädt Änderungen nach kurzer Pause hoch. Dabei werden letzter gemeinsamer Stand, eigene und fremde Fassung per Dreiwege-Merge verbunden, damit gleichzeitige Eingaben verschiedener Spieler nicht überschreiben. Die Live-Verbindung (SSE) meldet Änderungen anderer sofort. Felder, die nur ein Gerät betreffen (Rückgängig-Verlauf, angezeigter Spieler, bei Kniffel die Eingabeart), gehören nicht in die geteilte Fassung; jede Engine nennt sie in `localKeys`.
+
+## Hitster
+
+Hitster ist das einzige Spiel mit Außenkontakt. Die Engine (`packages/games/src/hitster/`) kennt davon nichts: Sie bekommt fertige Karten (`start(game, cards)`) und rechnet Zeitstrahl, Token und Rückgängig. Spotify und MusicBrainz laufen im Browser (`core/spotify/`, `core/hitster/`), der Server liefert nur die öffentliche Client-ID (`SPOTIFY_CLIENT_ID` in `/api/info`).
+
+* **Anmeldung:** Authorization Code mit PKCE, kein Client-Secret. Die Tokens liegen im `localStorage` des Geräts und gehören nicht zu den synchronisierten Daten.
+* **Stapel:** `create` legt das Spiel ohne Karten an (die Engine arbeitet synchron), das Spielblatt lädt die Playlist und ruft `start` auf. Der Stapel steht danach als Schnappschuss im Spiel, damit alle Geräte am Live-Tisch denselben haben.
+* **Jahre** (`trackId → Jahr, Quelle`) und die Playlist-Bibliothek liegen in den Einstellungen (`settings.games.hitster`) und werden über alle Geräte geteilt. Damit zwei Geräte sich nicht gegenseitig überschreiben, kann eine Engine `mergeOptions` anbieten, das `mergeMeta` aufruft.
+* **Wiedergabe:** pro Gerät schaltbar (`SpotifyPlayer`). Jedes Gerät mit „Auf diesem Gerät abspielen“ startet bei einer neuen Karte den Song auf seinem Connect-Gerät.
+* **Geheimhaltung:** Das Jahr der gezogenen Karte steht im geteilten Dokument. Die Oberfläche zeigt es erst nach dem Auflösen; wer die Entwicklerwerkzeuge öffnet, kann es lesen.
 
 ## Oberfläche
 

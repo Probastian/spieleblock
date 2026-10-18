@@ -67,6 +67,10 @@ export function mergeMeta(local: Meta, remote: Meta): Meta {
     if (!old || p.u > old.u) byId.set(p.id, p);
   }
   const order = [...local.players.map(p => p.id), ...remote.players.map(p => p.id)].filter((id, i, a) => a.indexOf(id) === i);
-  const newer = remote.u > local.u ? remote : local;
-  return { players: order.map(id => byId.get(id)!), settings: clone(newer.settings), u: Math.max(local.u, remote.u) };
+  const [newer, older] = remote.u > local.u ? [remote, local] : [local, remote];
+  const settings = clone(newer.settings);
+  for (const engine of ENGINES) {
+    if (engine.mergeOptions) settings.games[engine.id] = engine.mergeOptions(newer.settings.games[engine.id], older.settings.games[engine.id]);
+  }
+  return { players: order.map(id => byId.get(id)!), settings, u: Math.max(local.u, remote.u) };
 }
