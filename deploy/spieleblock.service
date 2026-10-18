@@ -1,6 +1,7 @@
-# Variante ohne Docker: z. B. in einem Debian-LXC mit "apt install nodejs" (Node 20 oder neuer).
+# Variante ohne Docker, z. B. in einem Debian-LXC mit Node 22 oder neuer.
 # Ablegen unter /etc/systemd/system/spieleblock.service, dann:
 #   systemctl daemon-reload && systemctl enable --now spieleblock
+# In /opt/spieleblock liegen server.mjs und der Ordner public (= Inhalt von packages/server/dist).
 [Unit]
 Description=Spieleblock
 After=network.target

@@ -1,9 +1,29 @@
 {
-  "name": "spieleblock-server",
-  "version": "1.0.0",
+  "name": "spieleblock",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "description": "Spieleblock (Kniffel, Wizard, Punktetafel) mit Live-Tisch zum Selbst-Hosten",
-  "scripts": { "start": "node server.mjs" },
-  "engines": { "node": ">=20" }
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "npm run start -w @spieleblock/web",
+    "dev:server": "npm run dev -w @spieleblock/server",
+    "build": "npm run build -w @spieleblock/web && npm run build -w @spieleblock/server",
+    "start": "node packages/server/dist/server.mjs",
+    "test": "vitest run",
+    "test:web": "npm run test -w @spieleblock/web",
+    "typecheck": "tsc -p packages/shared && tsc -p packages/games && tsc -p packages/server",
+    "check": "npm run typecheck && npm test && npm run test:web && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.25.0",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.8"
+  }
 }

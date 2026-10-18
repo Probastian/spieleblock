@@ -1,0 +1,9 @@
+{
+  "name": "@spieleblock/games",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Spiel-Engines (Regeln, Zustand, Wertung) ohne Framework-Abhängigkeit",
+  "main": "src/index.ts",
+  "types": "src/index.ts"
+}

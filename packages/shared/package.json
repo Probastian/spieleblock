@@ -1,0 +1,9 @@
+{
+  "name": "@spieleblock/shared",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Protokoll und Hilfsfunktionen, die Server und Web-App gemeinsam nutzen",
+  "main": "src/index.ts",
+  "types": "src/index.ts"
+}

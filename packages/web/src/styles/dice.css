@@ -1,0 +1,8 @@
+/* dice */
+.die{display:block}
+.die .db{fill:var(--die);stroke:var(--die-edge);stroke-width:1.2}
+.die .dp{fill:var(--pip)}
+.die .dp.one{fill:var(--pip-one)}
+.die.mini .db{fill:none;stroke:currentColor;stroke-width:1.7}
+.die.mini .dp,.die.mini .dp.one{fill:currentColor}
+

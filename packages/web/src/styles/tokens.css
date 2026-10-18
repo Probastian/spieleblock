@@ -1,0 +1,39 @@
+:root{
+  --paper:#F6F1E4; --grid:rgba(98,140,196,.2); --sheet:#FFFDF6; --chip:#EFE8D6; --press:rgba(60,45,20,.07);
+  --ink:#2B2A33; --ink-2:#4B4958; --muted:#7A7568; --line:#DDD5C0; --line-strong:#B5AC95; --edge:#3A3744;
+  --accent:#D6453D; --accent-soft:#FBE0D8; --on-accent:#FFF9F0;
+  --gold:#8F6200; --gold-soft:#FFEFA6; --good:#2F7D55; --good-soft:#D9EFD9; --bad:#B3352C; --bad-soft:#F9DAD3;
+  --pen:#2C4FA3; --pencil:#8C877B; --kraft:#E9D6B4; --stitch:#B08850; --mint:#D3EAD5; --tape:rgba(244,208,100,.78);
+  --die:#FFFFFF; --die-edge:#3A3744; --pip:#2B2A33; --pip-one:#D6453D;
+  --focus:#2F5FA8; --scrim:rgba(40,28,10,.42); --shadow-c:rgba(70,45,10,.24);
+  --p0:#D6453D; --p1:#2F65B8; --p2:#2F8A5A; --p3:#D4801E; --p4:#7B55AE; --p5:#23858F; --p6:#C2417D; --p7:#767F22; --on-pc:#FFFFFF;
+  --c0:#D6453D; --c1:#2F65B8; --c2:#2F8A5A; --c3:#CC7A12; --c4:#7B55AE; --c5:#0E8DA3; --c6:#C2417D; --c7:#767F22; --lilac:#E4DAF3;
+  --f-display:'Caveat Brush','Segoe Print','Bradley Hand',cursive;
+  --f-body:'Patrick Hand','Segoe Print','Bradley Hand',system-ui,sans-serif;
+  --f-num:'Caveat','Segoe Print','Bradley Hand',cursive;
+  --wob:15px 20px 13px 18px / 18px 13px 20px 15px; --wob-s:9px 13px 8px 12px / 12px 8px 13px 9px; --wob-c:52% 46% 54% 48% / 47% 54% 46% 53%;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#1F1C19; --grid:rgba(255,238,200,.06); --sheet:#2B2723; --chip:#39332D; --press:rgba(255,240,210,.07);
+  --ink:#F3EBDA; --ink-2:#D2C9B5; --muted:#A39A8C; --line:#443D35; --line-strong:#665D50; --edge:#D9CDB5;
+  --accent:#FF7F70; --accent-soft:#4C2924; --on-accent:#2A1210;
+  --gold:#F0C95C; --gold-soft:#4C4119; --good:#6FD39B; --good-soft:#1F3B2C; --bad:#FF8E80; --bad-soft:#4C2622;
+  --pen:#92B5FF; --pencil:#9D9589; --kraft:#4A3B2A; --stitch:#8E7048; --mint:#244031; --tape:rgba(232,194,86,.5);
+  --die:#F3EBDA; --die-edge:#A89C86; --pip:#2B2723; --pip-one:#D6453D;
+  --focus:#7FB0FF; --scrim:rgba(0,0,0,.6); --shadow-c:rgba(0,0,0,.45);
+  --p0:#FF7F70; --p1:#7FB0FF; --p2:#58CF92; --p3:#F5A640; --p4:#BA98F5; --p5:#4CCBDB; --p6:#F58ABF; --p7:#BDCF5E; --on-pc:#1F1C19;
+  --c0:#E8604F; --c1:#4F8DE0; --c2:#2FA56A; --c3:#CC8020; --c4:#9B78D6; --c5:#1FA3B5; --c6:#D8588F; --c7:#8E9B28; --lilac:#3C3252;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --paper:#1F1C19; --grid:rgba(255,238,200,.06); --sheet:#2B2723; --chip:#39332D; --press:rgba(255,240,210,.07);
+  --ink:#F3EBDA; --ink-2:#D2C9B5; --muted:#A39A8C; --line:#443D35; --line-strong:#665D50; --edge:#D9CDB5;
+  --accent:#FF7F70; --accent-soft:#4C2924; --on-accent:#2A1210;
+  --gold:#F0C95C; --gold-soft:#4C4119; --good:#6FD39B; --good-soft:#1F3B2C; --bad:#FF8E80; --bad-soft:#4C2622;
+  --pen:#92B5FF; --pencil:#9D9589; --kraft:#4A3B2A; --stitch:#8E7048; --mint:#244031; --tape:rgba(232,194,86,.5);
+  --die:#F3EBDA; --die-edge:#A89C86; --pip:#2B2723; --pip-one:#D6453D;
+  --focus:#7FB0FF; --scrim:rgba(0,0,0,.6); --shadow-c:rgba(0,0,0,.45);
+  --p0:#FF7F70; --p1:#7FB0FF; --p2:#58CF92; --p3:#F5A640; --p4:#BA98F5; --p5:#4CCBDB; --p6:#F58ABF; --p7:#BDCF5E; --on-pc:#1F1C19;
+  --c0:#E8604F; --c1:#4F8DE0; --c2:#2FA56A; --c3:#CC8020; --c4:#9B78D6; --c5:#1FA3B5; --c6:#D8588F; --c7:#8E9B28; --lilac:#3C3252;
+  color-scheme:dark;
+}

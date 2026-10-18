@@ -1,4 +1,7 @@
+**/node_modules
+**/dist
+**/.angular
 data
-node_modules
-*.md
 .git
+docs
+*.md

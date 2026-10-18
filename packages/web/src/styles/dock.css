@@ -1,0 +1,25 @@
+/* dice tray */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--sheet);border-top:1px solid var(--line);box-shadow:0 -12px 30px -16px var(--shadow-c);padding-top:10px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));user-select:none;-webkit-user-select:none}
+.dock .wrap{display:grid;gap:10px}
+.dock-hint{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;color:var(--muted);min-height:18px}
+.dock-hint b{color:var(--ink);font-weight:700}
+.dock-hint .sum{font-family:var(--f-num);white-space:nowrap}
+.dock.kniffel .dock-hint b{color:var(--accent)}
+.slots{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) 78px;gap:8px;align-items:stretch}
+.slot{aspect-ratio:1;max-width:100%;border-radius:12px;border:1.5px dashed var(--line-strong);background:transparent;padding:0;display:grid;place-items:center;color:var(--muted);font-size:12px;font-family:var(--f-num)}
+.slot.set{border:0}
+.slot .die{width:100%;height:100%}
+.slot.tumble .die{animation:tumble .5s cubic-bezier(.2,.9,.3,1.25) both;animation-delay:var(--d,0ms)}
+@keyframes tumble{0%{transform:rotate(-220deg) scale(.3);opacity:0}100%{transform:none;opacity:1}}
+.dock.kniffel .slot.set .die{animation:hop .7s ease-in-out 2;animation-delay:var(--d,0ms)}
+@keyframes hop{0%,100%{transform:none}40%{transform:translateY(-8px) rotate(8deg)}}
+.roll{border-radius:12px;border:0;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;align-content:center;gap:1px;font-weight:750;font-size:14px;padding:4px}
+.roll small{font-family:var(--f-num);font-size:11px;opacity:.85;font-weight:500}
+.roll:disabled{background:var(--chip);color:var(--muted)}
+.faces{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) 52px;gap:6px}
+.face{height:48px;border-radius:11px;border:1px solid var(--line);background:var(--paper);padding:0;display:grid;place-items:center;transition:transform .08s}
+.face .die{width:30px;height:30px}
+.face.clr{color:var(--ink-2)}
+.face:active:not(:disabled){transform:scale(.92)}
+.face:disabled{opacity:.35}
+

@@ -1,0 +1,32 @@
+/* ===== charts ===== */
+.lcard{padding:14px 14px 12px;background:var(--sheet);border:2px solid var(--edge);border-radius:var(--wob);box-shadow:3px 4px 0 var(--shadow-c)}
+.lc{margin:0;display:grid;gap:8px;min-width:0}
+.lc-h{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:30px}
+.lc-h h3{margin:0;font-family:var(--f-display);font-size:21px;font-weight:400;color:var(--ink);line-height:1.1}
+.lc-h .link{font-size:16px;font-family:var(--f-body);padding:4px 0}
+.lc-plot{position:relative;min-width:0}
+.lc svg{display:block;width:100%;height:auto;overflow:visible}
+.lc-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 4}
+.lc-grid.z{stroke:var(--line-strong);stroke-width:1.5;stroke-dasharray:none}
+.lc-axis{stroke:var(--line-strong);stroke-width:1.5}
+.lc-tick{stroke:var(--line-strong);stroke-width:1.5}
+.lc-t{font-family:var(--f-body);font-size:12.5px;fill:var(--ink-2)}
+.lc-lab{font-family:var(--f-body);font-size:14px;fill:var(--ink)}
+.lc-line{fill:none;stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round}
+.lc-mk{stroke:var(--sheet);stroke-width:3;paint-order:stroke;stroke-linejoin:round}
+.lc-cross{display:none;stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 3}
+.lc-cross.on{display:block}
+.lc-hit{fill:transparent;touch-action:pan-y;cursor:crosshair}
+.lc-tip{position:absolute;top:0;left:0;z-index:3;display:none;min-width:128px;max-width:210px;padding:8px 10px 8px;border:2px solid var(--edge);border-radius:var(--wob-s);background:var(--sheet);box-shadow:2px 3px 0 var(--shadow-c);font-family:var(--f-body);font-size:15px;line-height:1.25;color:var(--ink);pointer-events:none;gap:2px}
+.lc-tip.on{display:grid}
+.lc-tip .h{font-family:var(--f-display);font-weight:400;font-size:16px;margin-bottom:2px}
+.lc-tip .r{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:7px;align-items:center}
+.lc-tip .r span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lc-tip .r b{font-family:var(--f-num);font-size:19px;font-weight:700;color:var(--pen)}
+.lc-tip i{width:10px;height:10px;border-radius:3px;display:block}
+.lc-leg{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 14px;font-family:var(--f-body);font-size:15px;color:var(--ink-2)}
+.lc-leg li{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;max-width:100%}
+.lc-leg span{white-space:nowrap}
+.lc-tbl{max-height:260px;overflow:auto}
+.lc-tbl .tbl th,.lc-tbl .tbl td{text-align:right;height:34px;font-size:18px}
+.lc-tbl .tbl th:first-child{text-align:left}

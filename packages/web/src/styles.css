@@ -1,0 +1,15 @@
+/* Reihenfolge ist wichtig: Die späteren Dateien überschreiben die früheren (Kritzel-Optik, kompakter Block). */
+@import './styles/fonts.css';
+@import './styles/tokens.css';
+@import './styles/base.css';
+@import './styles/dice.css';
+@import './styles/header.css';
+@import './styles/pad.css';
+@import './styles/dock.css';
+@import './styles/sheets.css';
+@import './styles/screens.css';
+@import './styles/hub.css';
+@import './styles/cozy.css';
+@import './styles/compact.css';
+@import './styles/chart.css';
+@import './styles/table.css';

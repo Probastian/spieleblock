@@ -1,0 +1,12 @@
+{
+  "name": "@spieleblock/server",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Selbst-Hosting-Server: speichert Dokumente, verteilt Änderungen live, liefert die Web-App aus",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs && (node build.mjs --watch & DATA_DIR=../../data node --watch dist/server.mjs)",
+    "start": "node dist/server.mjs"
+  }
+}

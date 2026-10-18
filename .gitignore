@@ -1,3 +1,7 @@
 node_modules
+dist
+.angular
 data
 .DS_Store
+*.log
+coverage

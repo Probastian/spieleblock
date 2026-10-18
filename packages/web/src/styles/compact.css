@@ -1,0 +1,73 @@
+/* ===== compact Kniffel pad: whole sheet at a glance ===== */
+.top::before{height:12px;background:radial-gradient(circle at 12px 6px,var(--paper) 0 3.6px,transparent 4.2px) 0 0/26px 12px repeat-x}
+.topbar{padding-block:0 6px;gap:6px}
+.topbar .iconbtn{width:38px;height:38px}
+.seg button{width:36px;height:30px}
+.strip{padding:12px 2px 8px;gap:8px}
+.pchip{display:flex;align-items:center;justify-content:space-between;gap:10px;height:40px;min-width:104px;max-width:170px;padding:0 10px}
+.pchip .pn{min-width:0;flex:1}
+.pchip .pt{font-size:24px;line-height:1}
+.turnmark{top:-9px;font-size:11px}
+.kmain{gap:10px;padding-block:8px 20px}
+.main.kmain.has-dock{padding-bottom:calc(156px + env(safe-area-inset-bottom,0px))}
+.kgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start}
+.kcol{display:grid;gap:10px;min-width:0}
+.kmain .block{box-shadow:2px 3px 0 var(--shadow-c)}
+.kmain .sec-h{padding:4px 10px 3px}
+.kmain .sec-h .lbl{font-size:15px;letter-spacing:.1em}
+.kmain .sec-sum{font-size:26px;line-height:1}
+.kmain .row{grid-template-columns:28px minmax(0,1fr)}
+.kmain .info{padding:0 0 0 6px}
+.kmain .info .die,.kmain .info svg{width:18px;height:18px}
+.kmain .rbtn{min-height:0;height:37px;padding:2px 6px 2px 2px;gap:4px}
+.kmain .fname{font-size:16px;line-height:1.02;gap:3px}
+.kmain .new{display:none}
+.kmain .cell{width:50px;height:30px;font-size:25px}
+.kmain .cell.best{font-size:23px;border-width:2.5px}
+.kmain .cell.prev{font-size:19px;border-width:1.5px}
+.kmain .cell.zero::after{left:10px;right:10px}
+.kmain .bonuswrap{padding:7px 10px 9px;gap:8px}
+.kmain .bonus{gap:4px}
+.kmain .bonus-top{gap:6px;flex-wrap:wrap}
+.kmain .bonus-top .bl{font-size:16px}
+.kmain .bonus-top .bl small{font-size:14px}
+.kmain .bonus-top .bs{margin-left:auto;font-size:15px}
+.kmain .bonus.got .bs{font-family:var(--f-num);font-size:22px;line-height:1}
+.kmain .bar{height:9px}
+.kmain .soll{font-size:14px}
+.kmain .xrow{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 8px 4px 10px;border-top:1.5px solid var(--line)}
+.kmain .xrow:first-child{border-top:0}
+.kmain .xrow .fname{font-size:15.5px}
+.kmain .stepper button{width:32px;height:32px;font-size:22px}
+.kmain .stepper span{min-width:32px;font-size:20px}
+.kmain .grand{padding:12px 18px 10px;margin-top:4px}
+.kmain .g-n{font-size:54px}
+.kmain .g-b{font-size:15px}
+/* dice tray: slimmer */
+.dock{padding-top:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+.dock .wrap{gap:6px}
+.dock-hint{display:flex;align-items:center;gap:8px;min-height:0;font-size:15px}
+.dock-hint .dh{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slots{gap:6px;grid-template-columns:repeat(5,minmax(0,1fr)) 74px}
+.faces{gap:6px;grid-template-columns:repeat(6,minmax(0,1fr)) 48px}
+.face{height:42px}
+.face .die{width:28px;height:28px}
+.firstbtn{height:28px;padding:0 10px;border:2px solid var(--edge);border-radius:var(--wob-s);background:var(--sheet);color:var(--ink);font-size:15px;box-shadow:1px 2px 0 var(--shadow-c);white-space:nowrap;flex:none}
+.firstbtn[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+
+
+/* tighter pad rows, extras strip, compact total */
+.kmain .row{grid-template-columns:26px minmax(0,1fr)}
+.kmain .info{padding:0 0 0 5px}
+.kmain .cell{width:46px}
+.kmain .extras{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.kmain .extras .xrow{border-top:0}
+.kmain .extras .xrow+.xrow{border-left:1.5px solid var(--line)}
+.kmain .grand{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center;padding:10px 16px 8px}
+.kmain .g-l{display:contents}
+.kmain .g-l .lbl{grid-column:1;grid-row:1;min-width:0;overflow-wrap:anywhere}
+.kmain .g-n{grid-column:2;grid-row:1/3;font-size:50px}
+.kmain .g-b{grid-column:1;grid-row:2;font-size:14.5px}
+.kmain .fname{font-size:15.5px;min-width:0;overflow-wrap:anywhere}
+.kmain .cell{width:44px}
+.brand .sub .mono{font-size:18px;color:var(--pen)}
