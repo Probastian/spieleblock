@@ -16,6 +16,8 @@ export interface GameUi {
   readonly tile: string;
   readonly icon: IconName | 'die5';
   readonly startLabel: string;
+  /** Noch in der Erprobung: erscheint im ausklappbaren Bereich „Experimental“ des Hauptmenüs. */
+  readonly experimental?: boolean;
   /** Text des Knopfs auf dem Endbildschirm, der zurück zum Blatt führt. */
   readonly reviewLabel?: string;
   /** Spiel-spezifische Einstellungen im Einrichtungsbildschirm. Bekommt `playerCount`. */

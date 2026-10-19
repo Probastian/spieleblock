@@ -1,3 +1,3 @@
 export * from './game';
-export { hitsterEngine } from './engine';
+export { hitsterEngine, filmEngine } from './engine';
 export * from './years';

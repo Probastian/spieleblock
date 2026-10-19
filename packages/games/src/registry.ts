@@ -1,14 +1,18 @@
 import type { AnyEngine } from './core/engine';
-import { hitsterEngine } from './hitster/engine';
+import { hiloEngine } from './hilo/engine';
+import { filmEngine, hitsterEngine } from './hitster/engine';
+import { imposterEngine } from './imposter/engine';
 import { kniffelEngine } from './kniffel/engine';
 import { tafelEngine } from './tafel/engine';
+import { wavelengthEngine } from './wavelength/engine';
+import { whoamiEngine } from './whoami/engine';
 import { wizardEngine } from './wizard/engine';
 
 /**
  * Alle Spiele. Die Reihenfolge bestimmt die Reihenfolge im Hauptmenü.
  * Ein neues Spiel wird hier eingetragen, mehr braucht dieses Paket nicht.
  */
-export const ENGINES: readonly AnyEngine[] = [kniffelEngine, wizardEngine, hitsterEngine, tafelEngine];
+export const ENGINES: readonly AnyEngine[] = [kniffelEngine, wizardEngine, hitsterEngine, filmEngine, imposterEngine, whoamiEngine, wavelengthEngine, hiloEngine, tafelEngine];
 
 const byId = new Map<string, AnyEngine>(ENGINES.map(e => [e.id, e]));
 

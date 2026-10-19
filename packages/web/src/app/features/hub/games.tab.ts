@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { engineOf, type BaseGame } from '@spieleblock/games';
@@ -12,11 +13,21 @@ import { AvatarComponent } from '../../shared/ui/avatar.component';
 import { GameTileComponent } from '../../shared/ui/game-tile.component';
 import { IconComponent } from '../../shared/ui/icon.component';
 
+const LS_EXPERIMENTAL = 'sb.experimental';
+
+function readOpen(): boolean {
+  try {
+    return localStorage.getItem(LS_EXPERIMENTAL) === '1';
+  } catch {
+    return false;
+  }
+}
+
 @Component({
   selector: 'sb-games-tab',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { style: 'display: contents' },
-  imports: [RouterLink, AvatarComponent, GameTileComponent, IconComponent],
+  imports: [NgTemplateOutlet, RouterLink, AvatarComponent, GameTileComponent, IconComponent],
   template: `
     @if (loading()) {
       <div class="blank"><b>Lade deine Daten …</b>Spieler und Spiele werden vom Server geholt.</div>
@@ -59,19 +70,40 @@ import { IconComponent } from '../../shared/ui/icon.component';
     <section class="sec">
       <h2 class="lbl">Neues Spiel</h2>
       <div class="stack">
-        @for (ui of uis; track ui.id) {
-          <a class="gcard" [routerLink]="['/neu', ui.id]">
-            <span [sbGameTile]="ui"></span>
-            <span>
-              <span class="gname">{{ ui.name }}</span>
-              <span class="gblurb">{{ ui.blurb }}</span>
-              <span class="gtags">@for (t of ui.tags; track t) { <span>{{ t }}</span> }</span>
-            </span>
-            <span class="chev"><svg sb-icon name="chevR"></svg></span>
-          </a>
+        @for (ui of mainUis; track ui.id) {
+          <ng-container *ngTemplateOutlet="card; context: { $implicit: ui }" />
         }
       </div>
     </section>
+
+    @if (experimentalUis.length) {
+      <section class="sec">
+        <button class="xp-toggle" type="button" [attr.aria-expanded]="experimentalOpen()" aria-controls="xp-list" (click)="toggleExperimental()">
+          <span class="lbl">Experimental <span class="count">{{ experimentalUis.length }}</span></span>
+          <span class="xp-hint">{{ experimentalOpen() ? 'Einklappen' : 'Neue Spiele zum Ausprobieren' }}</span>
+          <svg sb-icon [name]="experimentalOpen() ? 'chevU' : 'chevD'" [size]="20"></svg>
+        </button>
+        @if (experimentalOpen()) {
+          <div class="stack" id="xp-list">
+            @for (ui of experimentalUis; track ui.id) {
+              <ng-container *ngTemplateOutlet="card; context: { $implicit: ui }" />
+            }
+          </div>
+        }
+      </section>
+    }
+
+    <ng-template #card let-ui>
+      <a class="gcard" [routerLink]="['/neu', ui.id]">
+        <span [sbGameTile]="ui"></span>
+        <span>
+          <span class="gname">{{ ui.name }}</span>
+          <span class="gblurb">{{ ui.blurb }}</span>
+          <span class="gtags">@for (t of ui.tags; track t) { <span>{{ t }}</span> }</span>
+        </span>
+        <span class="chev"><svg sb-icon name="chevR"></svg></span>
+      </a>
+    </ng-template>
   `,
 })
 export class GamesTab {
@@ -80,7 +112,10 @@ export class GamesTab {
   private readonly router = inject(Router);
   protected readonly sync = inject(SyncService);
 
-  protected readonly uis = GAME_UIS;
+  protected readonly mainUis = GAME_UIS.filter(ui => !ui.experimental);
+  protected readonly experimentalUis = GAME_UIS.filter(ui => ui.experimental);
+  /** Aufgeklappt bleibt pro Gerät erhalten. */
+  protected readonly experimentalOpen = signal(readOpen());
   protected readonly code = signal('');
   protected readonly inputValue = inputValue;
   protected readonly normalize = normalizeTableCode;
@@ -99,6 +134,16 @@ export class GamesTab {
       };
     }),
   );
+
+  protected toggleExperimental(): void {
+    const open = !this.experimentalOpen();
+    this.experimentalOpen.set(open);
+    try {
+      localStorage.setItem(LS_EXPERIMENTAL, open ? '1' : '0');
+    } catch {
+      /* ohne Speicher bleibt es bei dieser Sitzung */
+    }
+  }
 
   protected async join(e: Event): Promise<void> {
     e.preventDefault();

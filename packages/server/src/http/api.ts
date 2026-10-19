@@ -4,9 +4,11 @@ import {
   MAX_WATCHES,
   isAllowedPath,
   isDeviceKey,
+  isFilmList,
   parsePath,
   type CollectionResponse,
   type DocResponse,
+  type FilmsResponse,
   type InfoResponse,
   type MeResponse,
   type PathKind,
@@ -18,6 +20,7 @@ import type { Config } from '../config';
 import type { RateLimiter } from '../rate-limit';
 import type { DocumentStore } from '../store/document-store';
 import type { StreamHub } from './stream-hub';
+import { createFilmService } from './films';
 import { createUpdateControl } from './update';
 import { BodyTooLarge, clientIp, isPlainObject, readBody, sendError, sendJson } from './util';
 
@@ -37,6 +40,7 @@ const WATCH_BODY_MAX = 64 * 1024;
 export function createApiHandler(deps: ApiDeps) {
   const { config, store, hub, auth, limiter } = deps;
   const updates = createUpdateControl(config);
+  const films = createFilmService(config);
 
   const docResponse = (p: string): DocResponse => {
     const data = store.get(p);
@@ -98,7 +102,7 @@ export function createApiHandler(deps: ApiDeps) {
 
     const route = url.pathname;
     if (route === ENDPOINTS.info) {
-      const info: InfoResponse = { app: 'spieleblock', needAccess: auth.needsAccessCode, ok: auth.accessOk(req), version: config.version, spotifyClientId: config.spotifyClientId };
+      const info: InfoResponse = { app: 'spieleblock', needAccess: auth.needsAccessCode, ok: auth.accessOk(req), version: config.version, spotifyClientId: config.spotifyClientId, tmdb: !!config.tmdbToken };
       return sendJson(res, 200, info);
     }
     if (!auth.accessOk(req)) return sendError(res, 401, 'unauthenticated');
@@ -127,6 +131,17 @@ export function createApiHandler(deps: ApiDeps) {
         return sendError(res, 500, 'internal');
       }
       return sendJson(res, 200, updates.status());
+    }
+
+    if (route === ENDPOINTS.films && req.method === 'GET') {
+      if (!config.tmdbToken) return sendError(res, 503, 'unavailable');
+      const list = url.searchParams.get('list');
+      if (!isFilmList(list)) return sendError(res, 400, 'invalid_argument');
+      try {
+        return sendJson(res, 200, { list, films: await films.list(list) } satisfies FilmsResponse);
+      } catch {
+        return sendError(res, 503, 'unavailable');
+      }
     }
 
     if (route === ENDPOINTS.doc) return handleDocument(req, res, url, 'doc');

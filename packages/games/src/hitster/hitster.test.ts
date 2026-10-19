@@ -655,3 +655,25 @@ describe('Hitster: Einspruch', () => {
     expect(clean.current).toMatchObject({ phase: 'veto', vetoes: { 1: 1 } });
   });
 });
+
+describe('Film-Zeitstrahl', () => {
+  const films = Array.from({ length: 12 }, (_, i) => ({ id: 'm' + (100 + i), title: 'Film ' + i, artist: i % 2 ? 'Original ' + i : '', year: 1950 + i * 5, cover: i % 3 ? undefined : `abcdefgh${i}.jpg` }));
+
+  it('legt Spiele vom Typ film an, ohne Titel-Bonus, und akzeptiert Plakate', async () => {
+    const { filmEngine } = await import('./engine');
+    const { sanitizeGame } = await import('../core/sanitize');
+    const { engineOf } = await import('../registry');
+    const g = filmEngine.create([{ pid: null, name: 'A', color: 0 }, { pid: null, name: 'B', color: 1 }], { ...filmEngine.defaultOptions, guessReward: 2 });
+    expect(g.type).toBe('film');
+    expect(g.rules.guessReward).toBe(0);
+    expect(H.start(g, films)).toBeNull();
+    expect(g.deck.some(c => c.cover?.endsWith('.jpg'))).toBe(true);
+    expect(H.coverUrl({ cover: 'abcdefgh0.jpg' })).toBe('https://image.tmdb.org/t/p/w342/abcdefgh0.jpg');
+    const clean = sanitizeGame(JSON.parse(JSON.stringify(g)), engineOf) as H.HitsterGame;
+    expect(clean.type).toBe('film');
+    expect(clean.deck).toHaveLength(g.deck.length);
+    expect(filmEngine.label(g)).toBe('Film-Zeitstrahl');
+    expect(filmEngine.statsKey(g)).toBe('film-10');
+    expect(H.start(filmEngine.create([{ pid: null, name: 'A', color: 0 }], filmEngine.defaultOptions), films.slice(0, 3))).toMatch(/Zu wenige Filme/);
+  });
+});

@@ -27,7 +27,7 @@ Alles, was Server und App übereinstimmend wissen müssen: erlaubte Dokumentpfad
 Reine Funktionen auf Datenobjekten, ohne Angular und ohne DOM, daher gut testbar.
 
 * `core/` ist spielunabhängig: Typen (`BaseGame`), der Vertrag `GameEngine`, Rangliste, Beenden/Wiederöffnen, Bereinigung fremder Dokumente (`sanitizeGame`), Statistik, Rekorde und Entwicklungs-Diagramm.
-* `kniffel/`, `wizard/`, `hitster/`, `tafel/` je mit `game.ts` (Zustand und Operationen) und `engine.ts` (Anbindung an den Vertrag).
+* `kniffel/`, `wizard/`, `hitster/`, `imposter/`, `whoami/`, `wavelength/`, `hilo/`, `tafel/` je mit `game.ts` (Zustand und Operationen) und `engine.ts` (Anbindung an den Vertrag). Der Film-Zeitstrahl ist die Hitster-Engine ein zweites Mal (`filmEngine`, Typ `film`). Die Partyspiele teilen sich `core/party.ts` (Punkte, Schnappschuss-Rückgängig, Bereinigung) und `party/words.ts` (Wortlisten).
 * `registry.ts` listet alle Engines.
 
 Operationen ändern ein übergebenes Spiel direkt (`kniffel.commit(draft, …)`). Wer sie aufruft, übergibt eine Kopie, siehe Store.
@@ -42,6 +42,7 @@ src/app/
     api/         HTTP, Live-Stream (SSE), Datenbank-Zugriff, Gerätekennung, Zugangscode
     spotify/     Hitster: Anmeldung (PKCE), Spotify-API, Wiedergabe über Connect (alles im Browser)
     hitster/     Hitster: Playlists und Jahresprüfung (MusicBrainz)
+    film/        Film-Zeitstrahl: eingebaute Filmliste und TMDB-Listen (der Server vermittelt über /api/films, das Token bleibt dort)
     state/       Store (Zustand), SyncService (Abgleich), Backup, Modelle
     table/       TableService (Live-Tisch)
     ui/          Toast, Sheets, Wake-Lock, Konfetti

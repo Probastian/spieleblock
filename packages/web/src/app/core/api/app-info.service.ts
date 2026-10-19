@@ -8,6 +8,8 @@ export class AppInfo {
   readonly version = signal('');
   /** Client-ID der Spotify-App (Hitster); leer, wenn der Server keine hat. */
   readonly spotifyClientId = signal('');
+  /** Hat der Server einen TMDB-Zugang für den Film-Zeitstrahl? */
+  readonly tmdb = signal(false);
   private loaded = false;
 
   async load(): Promise<void> {
@@ -18,6 +20,7 @@ export class AppInfo {
       const info = (await res.json()) as Partial<InfoResponse>;
       if (typeof info.version === 'string') this.version.set(info.version);
       if (typeof info.spotifyClientId === 'string') this.spotifyClientId.set(info.spotifyClientId);
+      this.tmdb.set(!!info.tmdb);
     } catch {
       this.loaded = false; // offline: beim nächsten Öffnen nochmal
     }

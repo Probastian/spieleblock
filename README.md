@@ -1,6 +1,6 @@
 # Spieleblock
 
-Der Block für den Spieleabend: **Kniffel**, **Wizard**, **Hitster** und eine **Punktetafel** für alle anderen Spiele, direkt im Browser. Läuft auf dem eigenen Server, braucht keine Konten und keine App-Installation.
+Der Block für den Spieleabend: **Kniffel**, **Wizard**, **Hitster**, ein **Film-Zeitstrahl**, die Partyspiele **Imposter**, **Wer bin ich?** (auch als Stirnraten), **Wavelength** und **Mehr oder weniger** und eine **Punktetafel** für alle anderen Spiele, direkt im Browser. Läuft auf dem eigenen Server, braucht keine Konten und keine App-Installation.
 
 ![Hauptmenü, Kniffel-Block, Wizard mit Punkteverlauf und Live-Tisch](docs/img/uebersicht.png)
 
@@ -9,6 +9,9 @@ Der Block für den Spieleabend: **Kniffel**, **Wizard**, **Hitster** und eine **
 * **Kniffel** klassisch oder als *Extreme* (17 Felder, Superbonus). Eingabe per Würfel (Augen antippen oder würfeln, jedes Feld zeigt gleich seine Punkte) oder per Summe. Hausregeln für Extra-Kniffel und „Erste Hand“.
 * **Wizard** mit Ansagen und Stichen, Geber-Anzeige, Punkteverlauf als Diagramm.
 * **Hitster** mit deinen Spotify-Playlists: Songs in den Zeitstrahl einsortieren, Jahre mit MusicBrainz gegengeprüft, Musik über Spotify Connect (braucht eine eigene Spotify-App, siehe [docs/betrieb.md](docs/betrieb.md#hitster-einrichten-spotify)).
+* **Film-Zeitstrahl:** Wie Hitster, nur mit Filmen und ohne Spotify. Eine Liste ist eingebaut, mit einem [TMDB-Zugang](docs/betrieb.md#film-zeitstrahl-einrichten-tmdb) gibt es weitere mit Plakaten.
+* **Imposter, Wer bin ich?, Wavelength:** Partyspiele für 2 bis 8, am besten am Live-Tisch: Jeder sieht geheime Rollen, Figuren oder Ziele nur auf dem eigenen Handy. Wer bin ich? gibt es auch als Stirnraten mit Neigungssteuerung.
+* **Mehr oder weniger:** Hat das nächste Objekt mehr oder weniger als das davor? Städte, Länder, Berge und mehr, Zahlen aus Wikidata.
 * **Punktetafel** für jedes beliebige Spiel: Runden eintragen, Summen laufen mit, optional mit Zielpunktzahl.
 * **Live-Tisch:** Alle am Tisch öffnen den Block auf dem eigenen Handy, geben einen Code ein und wählen ihren Namen. Jeder trägt für sich ein, alle sehen den Stand sofort.
 * **Spieler, Verlauf, Rekorde:** Mitspieler einmal anlegen, Siege und Bestwerte werden automatisch geführt, ein Diagramm zeigt die Entwicklung über viele Abende.

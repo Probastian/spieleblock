@@ -20,7 +20,7 @@ describe('normalizeMeta', () => {
   it('füllt leere Dokumente mit Standardwerten', () => {
     const m = normalizeMeta(null);
     expect(m.players).toEqual([]);
-    expect(Object.keys(m.settings.games).sort()).toEqual(['hitster', 'kniffel', 'tafel', 'wizard']);
+    expect(Object.keys(m.settings.games).sort()).toEqual(['film', 'hilo', 'hitster', 'imposter', 'kniffel', 'tafel', 'wavelength', 'whoami', 'wizard']);
   });
 });
 

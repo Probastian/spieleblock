@@ -11,6 +11,7 @@ services:
       # ACCESS_KEY: "dein-geheimer-zugangscode"
       # Optional, nur für Hitster: Client-ID der eigenen Spotify-App (docs/betrieb.md).
       # SPOTIFY_CLIENT_ID: "deine-spotify-client-id"
+      # TMDB_TOKEN: "dein-tmdb-lesezugriffstoken"
       # Tische ohne Aktivität werden nach so vielen Tagen gelöscht (0 = nie).
       TABLE_TTL_DAYS: "30"
       # Täglich ein Backup, so viele Tage werden behalten.

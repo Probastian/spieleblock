@@ -92,3 +92,10 @@
 .hub-head,.hub .sec{animation:none}
 a.tab{text-decoration:none}
 a.run,a.hitem,a.gcard{color:inherit;text-decoration:none}
+
+/* Ausklappbarer Bereich „Experimental“ im Hauptmenü */
+.xp-toggle{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"t c" "h c";align-items:center;column-gap:10px;row-gap:2px;width:100%;padding:12px 14px;text-align:left;border-radius:14px;border:1.5px dashed var(--line-strong);background:transparent;color:inherit}
+.xp-toggle:active{background:var(--press)}
+.xp-toggle .lbl{grid-area:t;color:var(--ink)}
+.xp-toggle .xp-hint{grid-area:h;font-size:13px;color:var(--muted)}
+.xp-toggle svg{grid-area:c;color:var(--muted)}

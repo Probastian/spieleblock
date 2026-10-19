@@ -47,6 +47,34 @@ Songs aus einer Spotify-Playlist in die richtige zeitliche Reihenfolge bringen. 
 * **Stimmt ein Jahr nicht?** Nach dem Auflösen **Jahr stimmt nicht?** tippen. Die Karte wird neu bewertet, und die Korrektur gilt auch in künftigen Spielen.
 * **Live-Tisch:** Alle sehen den Stand auf dem eigenen Handy, aber nur wer dran ist, kann ziehen und legen. Den Stapel lädt das Gerät des Gastgebers. Wer nur mitspielt, braucht kein Spotify.
 
+## Film-Zeitstrahl
+
+Wie Hitster, nur mit Filmen: Plakat und Titel erscheinen, das Erscheinungsjahr nicht. Den Film im eigenen Zeitstrahl einsortieren, bestätigen, die anderen können widersprechen, dann wird aufgelöst. Einspruch, Token, Überspringen und Kaufen funktionieren wie bei Hitster. Der Bonus für „Titel und Interpret“ entfällt, der Titel steht ja auf der Karte. Beim Einrichten wählst du die Filmliste: „Bekannte Filme“ ist eingebaut, mit einem TMDB-Zugang auf dem Server kommen weitere dazu (siehe [betrieb.md](betrieb.md#film-zeitstrahl-einrichten-tmdb)). Stimmt ein Jahr nicht, **Jahr stimmt nicht?** tippen. Es braucht weder Spotify noch eine Anmeldung.
+
+## Imposter
+
+Für 3 bis 8 Spieler. Der Block zieht ein geheimes Wort. Alle sehen es, nur der **Imposter** nicht (auf Wunsch kennt er die Kategorie). Reihum nennt jeder einen Hinweis, dann wird abgestimmt, wer der Imposter ist. Wird er erwischt, darf er noch das Wort raten.
+
+* **Punkte:** Imposter, der nicht erwischt wird: 2. Erwischter Imposter, der das Wort errät: 1. Alle anderen: 1, wenn sie einen Imposter verdächtigt haben.
+* **Am Live-Tisch** sieht jeder seine Rolle nur auf dem eigenen Handy und stimmt dort geheim ab. **Mit einem Handy** wird es reihum weitergegeben (**Rolle ansehen**, **Verstanden, weitergeben**), abgestimmt wird laut und die Runde tippt den Verdächtigen an.
+* Beim Einrichten: Runden (3, 5, 8 oder offen), ein oder zwei Imposter, Kategorien.
+
+## Wer bin ich? und Stirnraten
+
+* **Am Tisch:** Jeder bekommt eine geheime Figur (Person, Filmfigur, Tier, Beruf), die die anderen sehen. Reihum Ja/Nein-Fragen. Wer es weiß, tippt **Ich weiß es!**: Wer zuerst fertig ist, bekommt die meisten Punkte. Am Live-Tisch zeigt dein Handy alle Figuren außer deiner; mit einem Handy gibt es **Figur zeigen**, während der Besitzer wegschaut.
+* **Stirnraten:** Ein Handy, ein Begriff. Wer dran ist, hält das Handy an die Stirn, die anderen erklären. **Richtig** gibt einen Punkt, **Weiter** überspringt. Auf Wunsch geht das auch durch Neigen: Handy nach unten ist „richtig“, nach oben „weiter“ (vor dem Zug **Neigen einschalten**, der Browser fragt ggf. nach der Erlaubnis). Zeit je Zug 30, 60 oder 90 Sekunden.
+
+## Wavelength
+
+Zwischen zwei Gegensätzen („kalt“ und „heiß“) liegt ein geheimes Ziel. Wer dran ist, sieht es (**Ziel ansehen**) und gibt einen Hinweis. Die anderen stellen den Regler dorthin, wo sie das Ziel vermuten. Treffer zählen 4, 3 oder 2 Punkte, je nach Abstand; wer den Hinweis gibt, bekommt den Durchschnitt.
+
+* **Jeder für sich:** Jeder stellt auf dem eigenen Handy seinen Regler ein und macht ihn fest. Mit einem Handy wird es reihum weitergegeben.
+* **Gemeinsam:** Alle beraten, ein Regler für alle, wie im Brettspiel.
+
+## Mehr oder weniger
+
+Links ein Objekt mit Zahl (z. B. eine Stadt und ihre Einwohner), rechts das nächste ohne Zahl: mehr oder weniger? Wer richtig liegt, zählt einen Punkt, wer falsch liegt, verliert ein Leben. Danach wird das aufgedeckte Objekt zum Vergleich. Themen: Städte, Länder, Berge, Vulkane, Flüsse, Wolkenkratzer, Seen, Inseln, Stadien, Wasserfälle. **Gleichzeitig** tippen alle in jeder Runde (am Live-Tisch jeder auf dem eigenen Handy), **Reihum** ist immer nur einer dran. Allein spielst du, bis das letzte Leben weg ist.
+
 ## Rückgängig und Ende
 
 * Nach jedem Eintrag erscheint kurz **Rückgängig**. Im Menü (⋯) steht der letzte Schritt ebenfalls bereit; so lassen sich nacheinander bis zu 60 Schritte zurücknehmen.

@@ -24,6 +24,8 @@ export interface Config {
   updateFromUi: boolean;
   /** Client-ID der Spotify-App für Hitster. Öffentlich, wird der Web-App mitgeteilt. Leer = Hitster ohne Spotify. */
   spotifyClientId: string;
+  /** Zugang zur Filmdatenbank TMDB für den Film-Zeitstrahl: API-Lesezugriffstoken (`eyJ…`) oder v3-Schlüssel. Bleibt auf dem Server. Leer = nur die mitgelieferte Filmliste. */
+  tmdbToken: string;
 }
 
 type Env = Record<string, string | undefined>;
@@ -64,5 +66,6 @@ export function loadConfig(env: Env, baseDir: string): Config {
     version: readVersion(env, baseDir),
     updateFromUi: /^(1|true|yes)$/i.test(str('UPDATE_FROM_UI', '')),
     spotifyClientId: /^[A-Za-z0-9]{16,64}$/.test(str('SPOTIFY_CLIENT_ID', '')) ? str('SPOTIFY_CLIENT_ID', '') : '',
+    tmdbToken: /^[A-Za-z0-9._-]{20,1000}$/.test(str('TMDB_TOKEN', '').trim()) ? str('TMDB_TOKEN', '').trim() : '',
   };
 }

@@ -24,6 +24,19 @@ export function rollDie(): number {
   }
 }
 
+/** Fisher-Yates; `random` ist austauschbar, damit Tests eine feste Reihenfolge bekommen. */
+export function shuffle<T>(list: readonly T[], random: () => number = Math.random): T[] {
+  const out = list.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
+/** Ein zufälliges Element (die Liste darf nicht leer sein). */
+export const pickOne = <T>(list: readonly T[], random: () => number = Math.random): T => list[Math.min(list.length - 1, Math.floor(random() * list.length))]!;
+
 export const MAX_UNDO = 60;
 
 /** Hängt einen Rückgängig-Eintrag an und begrenzt die Liste. */

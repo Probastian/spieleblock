@@ -30,6 +30,7 @@ export function testConfig(dir: string, overrides: Partial<Config> = {}): Config
     version: 'v1.2.3',
     updateFromUi: false,
     spotifyClientId: '',
+    tmdbToken: '',
     ...overrides,
   };
 }

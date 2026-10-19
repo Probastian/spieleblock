@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, ViewEncapsulation, computed, effect, inject, signal, untracked } from '@angular/core';
 import { hitster, pluralize } from '@spieleblock/games';
+import { FilmDecks } from '../../core/film/film-decks.service';
 import { HitsterDecks } from '../../core/hitster/hitster-decks.service';
 import { SpotifyAuth } from '../../core/spotify/spotify-auth.service';
 import { SpotifyPlayer } from '../../core/spotify/spotify-player.service';
@@ -29,7 +30,7 @@ type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; to
   imports: [GameTopbarComponent, AvatarComponent, HitsterCardComponent, HitsterMiniLine, HitsterPlayerComponent],
   template: `
     @let g = game();
-    <sb-game-topbar title="Hitster" [subtitle]="subtitle()" />
+    <sb-game-topbar [title]="film() ? 'Film-Zeitstrahl' : 'Hitster'" [subtitle]="subtitle()" />
     <main class="wrap main" [class.has-dock2]="!g.started && !!dock()">
       @if (!g.started) {
         <section class="ht-now">
@@ -43,8 +44,8 @@ type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; to
           } @else {
             <div class="ht-k"><b>Noch kein Stapel</b></div>
             @if (!g.source) {
-              <p class="ht-deal">Für dieses Spiel wurde keine Playlist gewählt. Geh zurück, wähle beim Einrichten eine Playlist und starte neu.</p>
-            } @else if (!auth.loggedIn()) {
+              <p class="ht-deal">Für dieses Spiel wurde {{ film() ? 'keine Filmliste' : 'keine Playlist' }} gewählt. Geh zurück, wähle beim Einrichten {{ film() ? 'eine Liste' : 'eine Playlist' }} und starte neu.</p>
+            } @else if (!film() && !auth.loggedIn()) {
               <p class="ht-deal">Um „{{ g.source.name }}“ zu laden, muss dieses Gerät mit Spotify verbunden sein.</p>
               <div class="ht-ctrls"><button class="btn primary" type="button" (click)="login()">Mit Spotify anmelden</button></div>
             } @else if (waitsForHost()) {
@@ -88,13 +89,22 @@ type Prep = { kind: 'idle' } | { kind: 'loading'; text: string; done: number; to
           </div>
 
           @if (c && c.phase !== 'revealed') {
-            <sb-ht-player [trackId]="c.card.id" />
+            @if (film()) {
+              <div class="ht-film" [class.nopic]="!poster(c.card)">
+                @if (poster(c.card); as img) {
+                  <span class="ht-poster" [style.background-image]="img"></span>
+                }
+                <span class="ht-ft"><b>{{ c.card.title }}</b>@if (c.card.artist) { <small>{{ c.card.artist }}</small> }</span>
+              </div>
+            } @else {
+              <sb-ht-player [trackId]="c.card.id" />
+            }
           } @else if (c) {
             <div class="ht-result">
               <sb-ht-card [card]="c.card" size="s" [state]="c.ok ? 'new' : 'miss'" />
               <div class="ht-res">
                 <b class="ht-verdict" [class.ok]="c.ok">{{ verdict() }}</b>
-                <span class="ht-song">{{ c.card.title }} · {{ c.card.artist }}</span>
+                <span class="ht-song">{{ c.card.title }}{{ c.card.artist ? ' · ' + c.card.artist : '' }}</span>
                 @if (canAct()) {
                   <span class="ht-acts">
                     @if (g.rules.guessReward > 0 && !c.guessed) {
@@ -204,12 +214,14 @@ export class HitsterBoard {
   protected readonly auth = inject(SpotifyAuth);
   protected readonly player = inject(SpotifyPlayer);
   private readonly decks = inject(HitsterDecks);
+  private readonly films = inject(FilmDecks);
   private readonly sheets = inject(SheetService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly pluralize = pluralize;
 
   protected readonly game = this.ctx.typed<hitster.HitsterGame>();
   protected readonly finished = computed(() => this.game().status === 'finished');
+  protected readonly film = computed(() => this.game().type === 'film');
   protected readonly active = computed(() => hitster.active(this.game()));
   protected readonly winners = computed(() => hitster.reached(this.game()));
   protected readonly chosen = computed(() => {
@@ -240,7 +252,7 @@ export class HitsterBoard {
 
   protected readonly subtitle = computed(() => {
     const g = this.game();
-    return g.started ? `Ziel ${g.rules.goal} Karten · ${g.deck.length} im Stapel` : g.source?.name || 'Playlist wählen';
+    return g.started ? `Ziel ${g.rules.goal} Karten · ${g.deck.length} im Stapel` : g.source?.name || (g.type === 'film' ? 'Liste wählen' : 'Playlist wählen');
   });
 
   protected readonly verdict = computed(() => {
@@ -337,14 +349,14 @@ export class HitsterBoard {
     // Gastgeber (oder lokales Spiel) lädt den Stapel von selbst, sobald alles da ist
     effect(() => {
       const g = this.game();
-      if (g.started || !g.source || !this.auth.loggedIn() || this.waitsForHost() || this.autoTried) return;
+      if (g.started || !g.source || (g.type !== 'film' && !this.auth.loggedIn()) || this.waitsForHost() || this.autoTried) return;
       this.autoTried = true;
       untracked(() => void this.prepare());
     });
     // Jede neue Karte startet auf Geräten, die abspielen sollen
     effect(() => {
       const c = this.game().current;
-      if (c && c.phase === 'listen') untracked(() => void this.player.play(c.card.id));
+      if (c && c.phase === 'listen' && this.game().type !== 'film') untracked(() => void this.player.play(c.card.id));
     });
     // Einspruch ansetzen geht nur, solange der Spieler noch entscheiden muss
     effect(() => {
@@ -381,9 +393,31 @@ export class HitsterBoard {
     void this.auth.login('/spiel/' + this.game().id);
   }
 
+  protected poster(card: hitster.HitsterCard): string | null {
+    const url = hitster.coverUrl(card);
+    return url ? `url("${url}")` : null;
+  }
+
+  /** Film-Zeitstrahl: Karten aus der gewählten Liste (mitgeliefert oder TMDB) holen. */
+  private async prepareFilms(source: hitster.DeckRef): Promise<void> {
+    this.prepError.set('');
+    this.prep.set({ kind: 'loading', text: 'Filmliste wird geladen …', done: 0, total: 0 });
+    try {
+      const cards = await this.films.load(source.id);
+      const error = this.ctx.update<hitster.HitsterGame, string | null>(g => (g.started ? null : hitster.start(g, cards)));
+      if (error) this.prepError.set(error);
+      else this.ctx.notify(`Stapel bereit: ${cards.length} Filme`);
+    } catch (e) {
+      this.prepError.set(this.films.errorText(e));
+    } finally {
+      this.prep.set({ kind: 'idle' });
+    }
+  }
+
   protected async prepare(): Promise<void> {
     const source = this.game().source;
     if (!source || this.prep().kind === 'loading') return;
+    if (this.film()) return this.prepareFilms(source);
     this.prepError.set('');
     this.prep.set({ kind: 'loading', text: 'Playlist wird gelesen …', done: 0, total: 0 });
     try {

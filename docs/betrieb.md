@@ -10,6 +10,7 @@ Alle Einstellungen sind Umgebungsvariablen: in `docker-compose.yml` unter `envir
 |---|---|---|
 | `UPDATE_FROM_UI` | leer | `1` erlaubt der App, eine Update-Prüfung anzufordern (versteckter Knopf, siehe [Updates](#automatisch-auf-dem-server)). Braucht die Path-Unit aus `deploy/`, nur ohne Docker. |
 | `SPOTIFY_CLIENT_ID` | leer | Client-ID der Spotify-App für Hitster, siehe [Hitster einrichten](#hitster-einrichten-spotify). Ohne sie bleibt Hitster ohne Spotify. |
+| `TMDB_TOKEN` | leer | Zugang zur Filmdatenbank TMDB für den Film-Zeitstrahl, siehe [Film-Zeitstrahl einrichten](#film-zeitstrahl-einrichten-tmdb). Ohne ihn gibt es nur die mitgelieferte Filmliste. |
 | `ACCESS_KEY` | leer | Zugangscode. Wenn gesetzt, fragt die App danach (wird im Browser gemerkt). Die Seite selbst ist öffentlich, die Daten nicht. |
 | `PORT` | `3000` | Port des Servers |
 | `HOST` | `0.0.0.0` | Adresse, auf der der Server lauscht (`127.0.0.1`, wenn nur ein lokaler Proxy davor steht) |
@@ -40,6 +41,23 @@ Hitster liest Playlists aus Spotify und startet die Songs auf einem Spotify-Ger�
 Wer am Live-Tisch nur mitspielt, muss sich nicht anmelden: Es genügt, wenn ein Gerät den Stapel lädt und ein Gerät die Musik abspielt.
 
 **Jahre.** Spotify nennt oft das Jahr des Albums, bei Sammlern und Neuauflagen also nicht das Original. Deshalb fragt der Browser beim Prüfen die freie Datenbank [MusicBrainz](https://musicbrainz.org) nach dem frühesten Erscheinungsjahr. Das Ergebnis speichert der Block in den Einstellungen des Nutzers, jeder Song wird nur einmal gesucht. MusicBrainz erlaubt etwa eine Anfrage pro Sekunde, parallele Anfragen helfen deshalb nicht. Der Block fragt darum in zwei Stufen: Zuerst je 20 Songs gebündelt über ihre ISRC (eine Anfrage für alle 20), dann einzeln nach Titel und Interpret nur dort, wo das Albumjahr falsch sein kann (Remaster, Sammler, „Best of“, Deluxe) oder die ISRC nichts ergab. Die Prüfung läuft im Hintergrund, man kann schon vorher spielen.
+
+## Film-Zeitstrahl einrichten (TMDB)
+
+Der Film-Zeitstrahl läuft auch ohne Einrichtung: Die Liste „Bekannte Filme“ steckt im Block. Mit einem Zugang zur Filmdatenbank [TMDB](https://www.themoviedb.org) kommen weitere Listen dazu (Beliebte Filme, Jahrzehnte, Klassiker, deutsche Filme, Animation), jeweils mit Plakaten.
+
+1. Auf [themoviedb.org](https://www.themoviedb.org) ein kostenloses Konto anlegen und die E-Mail bestätigen.
+2. Oben rechts auf das Profilbild, **Einstellungen**, **API**. Dort einen **API-Schlüssel anfordern**, Typ **Developer**, und die Bedingungen akzeptieren. Als Verwendung „Personal use“ wählen und kurz angeben, wofür: App-Name „Spieleblock“, eine Zusammenfassung wie „private Spieleabende“, als URL die Adresse deines Servers.
+3. Auf der API-Seite den **API-Lese-Zugriffstoken** kopieren (der lange Wert, der mit `eyJ` beginnt). Der kürzere v3-Schlüssel geht auch.
+4. Den Wert als `TMDB_TOKEN` in `docker-compose.yml` bzw. in die systemd-Datei eintragen und den Dienst neu starten.
+
+Der Token bleibt **auf dem Server**. Die App fragt den Block, der Block fragt TMDB und gibt nur Titel, Jahr und Plakat weiter. Jede Liste wird zwölf Stunden im Speicher gehalten, ein Spielabend belastet TMDB also kaum. Ob der Zugang klappt, sieht man beim Einrichten eines Film-Zeitstrahls: Dann stehen mehr Listen zur Auswahl.
+
+TMDB verlangt eine Quellenangabe, sie steht in der Spielregel des Film-Zeitstrahls. Die kostenlose Nutzung gilt für nicht kommerzielle Zwecke.
+
+## Zahlen für „Mehr oder weniger“
+
+„Mehr oder weniger“ braucht kein Netz und keine Einrichtung: Die Zahlen (Städte, Länder, Berge, Flüsse und mehr) stecken in der App, als Datei `packages/web/src/app/games/hilo/hilo-data.json`. Sie stammen aus [Wikidata](https://www.wikidata.org) (frei, CC0) und wurden mit `node scripts/hilo-data.mjs` abgezogen. Das Skript läuft nur von Hand (Wikidata braucht pro Thema etwa eine halbe Minute) und kann einzelne Themen neu laden, z. B. `node scripts/hilo-data.mjs berge,fluesse`. Neue Themen: eine Zeile in `CATEGORIES` ergänzen (Klasse und Eigenschaft von Wikidata) und das Skript starten.
 
 ## Daten und Backups
 

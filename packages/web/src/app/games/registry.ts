@@ -1,15 +1,20 @@
 import { ENGINES } from '@spieleblock/games';
 import type { GameUi } from './game-ui';
 import { hitsterUi } from './hitster/hitster.ui';
+import { filmUi } from './film/film.ui';
+import { hiloUi } from './hilo/hilo.ui';
+import { imposterUi } from './imposter/imposter.ui';
 import { kniffelUi } from './kniffel/kniffel.ui';
 import { tafelUi } from './tafel/tafel.ui';
+import { wavelengthUi } from './wavelength/wavelength.ui';
+import { whoamiUi } from './whoami/whoami.ui';
 import { wizardUi } from './wizard/wizard.ui';
 
 /**
  * Alle Spiele der Oberfläche, in der Reihenfolge des Hauptmenüs.
  * Ein neues Spiel: Engine in `packages/games` anlegen, hier die Oberfläche eintragen.
  */
-export const GAME_UIS: readonly GameUi[] = [kniffelUi, wizardUi, hitsterUi, tafelUi];
+export const GAME_UIS: readonly GameUi[] = [kniffelUi, wizardUi, hitsterUi, filmUi, imposterUi, whoamiUi, wavelengthUi, hiloUi, tafelUi];
 
 const byId = new Map(GAME_UIS.map(ui => [ui.id, ui]));
 

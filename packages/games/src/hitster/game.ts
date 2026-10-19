@@ -1,14 +1,15 @@
 import type { BaseGame, SeatedPlayer } from '../core/types';
-import { clampInt, isId, newId, num, pushUndo } from '../core/util';
+import { clampInt, isId, newId, num, pushUndo, shuffle } from '../core/util';
 
 /** Eine Song-Karte. Die Spotify-Adresse ergibt sich aus der ID (`trackUri`). */
 export interface HitsterCard {
-  /** Spotify-Track-ID. */
+  /** Spotify-Track-ID (Film-Zeitstrahl: `m<TMDB-ID>` oder `f-<Kürzel>`). */
   id: string;
   title: string;
+  /** Interpret; beim Film der Originaltitel oder leer. */
   artist: string;
   year: number;
-  /** Bild-ID des Albumcovers bei Spotify (`i.scdn.co/image/<ID>`). Fehlt, wenn Spotify keines nennt. */
+  /** Bild-ID des Albumcovers bei Spotify (`i.scdn.co/image/<ID>`) oder Dateiname des Plakats bei TMDB (`abc.jpg`). Fehlt, wenn es keines gibt. */
   cover?: string;
 }
 
@@ -104,8 +105,11 @@ export type HitsterUndo =
   | { k: 'buy'; pi: number; id: string; cost: number }
   | { k: 'year'; id: string; prev: number };
 
+/** Die Zeitstrahl-Engine gibt es zweimal: mit Musik (`hitster`) und mit Filmen (`film`). */
+export type TimelineKind = 'hitster' | 'film';
+
 export interface HitsterGame extends BaseGame<HitsterPlayer> {
-  type: 'hitster';
+  type: TimelineKind;
   rules: HitsterRules;
   /** Aus welcher Playlist der Stapel gebaut wird. */
   source: DeckRef | null;
@@ -132,18 +136,21 @@ export const MIN_YEAR = 1900;
 export const maxYear = (): number => new Date().getFullYear() + 1;
 
 /** Adresse des Covers oder `null`. Die Bilder liefert das Spotify-CDN. */
-export const coverUrl = (card: Pick<HitsterCard, 'cover'>): string | null => (card.cover ? `https://i.scdn.co/image/${card.cover}` : null);
+export const coverUrl = (card: Pick<HitsterCard, 'cover'>): string | null => {
+  if (!card.cover) return null;
+  return POSTER_RE.test(card.cover) ? `https://image.tmdb.org/t/p/w342/${card.cover}` : `https://i.scdn.co/image/${card.cover}`;
+};
 
 export const trackUri = (card: Pick<HitsterCard, 'id'>): string => `spotify:track:${card.id}`;
 
-export function normalizeRules(raw: unknown): HitsterRules {
+export function normalizeRules(raw: unknown, film = false): HitsterRules {
   const r = (raw ?? {}) as Partial<Record<keyof HitsterRules, unknown>>;
   const pick = (v: unknown, fallback: number, min: number, max: number) => (v === undefined ? fallback : clampInt(v, min, max));
   return {
     goal: pick(r.goal, DEFAULT_RULES.goal, 3, 30),
     startTokens: pick(r.startTokens, DEFAULT_RULES.startTokens, 0, 10),
     skipCost: pick(r.skipCost, DEFAULT_RULES.skipCost, 0, 5),
-    guessReward: pick(r.guessReward, DEFAULT_RULES.guessReward, 0, 3),
+    guessReward: film ? 0 : pick(r.guessReward, DEFAULT_RULES.guessReward, 0, 3),
     buyCost: pick(r.buyCost, DEFAULT_RULES.buyCost, 0, 10),
     vetoCost: pick(r.vetoCost, DEFAULT_RULES.vetoCost, 0, 3),
   };
@@ -199,7 +206,7 @@ export function cleanCard(raw: unknown): HitsterCard | null {
   const year = Math.round(num(c['year']));
   if (year < MIN_YEAR || year > maxYear()) return null;
   const card: HitsterCard = { id: c['id'], title: String(c['title'] ?? '?').slice(0, 80), artist: String(c['artist'] ?? '?').slice(0, 60), year };
-  if (typeof c['cover'] === 'string' && COVER_RE.test(c['cover'])) card.cover = c['cover'];
+  if (typeof c['cover'] === 'string' && (COVER_RE.test(c['cover']) || POSTER_RE.test(c['cover']))) card.cover = c['cover'];
   return card;
 }
 
@@ -207,12 +214,14 @@ export function cleanCards(raw: unknown, max: number): HitsterCard[] {
   return (Array.isArray(raw) ? raw : []).slice(0, max).map(cleanCard).filter((c): c is HitsterCard => !!c);
 }
 
-export function create(players: SeatedPlayer[], o: Partial<HitsterOptions> = {}): HitsterGame {
+export function create(players: SeatedPlayer[], o: Partial<HitsterOptions> = {}, type: TimelineKind = 'hitster'): HitsterGame {
   const now = Date.now();
   const rules = normalizeRules(o);
+  // Bei Filmen gibt es keinen Titel zu raten: Der steht auf der Karte.
+  if (type === 'film') rules.guessReward = 0;
   return {
     id: 'g' + newId(),
-    type: 'hitster',
+    type,
     rules,
     source: normalizeDeckRef(o.source),
     started: false,
@@ -229,15 +238,7 @@ export function create(players: SeatedPlayer[], o: Partial<HitsterOptions> = {})
   };
 }
 
-/** Fisher-Yates; `random` ist austauschbar, damit Tests eine feste Reihenfolge bekommen. */
-export function shuffle<T>(list: readonly T[], random: () => number = Math.random): T[] {
-  const out = list.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [out[i], out[j]] = [out[j]!, out[i]!];
-  }
-  return out;
-}
+export { shuffle };
 
 /** Position, an der ein Jahr in einen sortierten Zeitstrahl passt (hinter gleichen Jahren). */
 export function insertionIndex(line: readonly HitsterCard[], year: number): number {
@@ -272,7 +273,7 @@ export function start(g: HitsterGame, cards: HitsterCard[], random: () => number
   const seen = new Set<string>();
   const unique = cleanCards(cards, Infinity).filter(c => !seen.has(c.id) && !!seen.add(c.id));
   const needed = g.players.length + 5;
-  if (unique.length < needed) return `Zu wenige Songs: mindestens ${needed} nötig, ${unique.length} gefunden`;
+  if (unique.length < needed) return `Zu wenige ${g.type === 'film' ? 'Filme' : 'Songs'}: mindestens ${needed} nötig, ${unique.length} gefunden`;
 
   // Erst mischen, dann kürzen: sonst käme von einer langen Playlist immer nur der Anfang ins Spiel
   const mixed = shuffle(unique, random).slice(0, MAX_CARDS);
